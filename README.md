@@ -1,6 +1,6 @@
 # Driver2Comm
 
-A general computationalframework for associating cancer cell-intrinsic driver genes with -extrinsic cell-cell communication
+A general computational framework for associating cancer cell-intrinsic driver genes with -extrinsic cell-cell communication
 
 ## Installation
 
