@@ -17,7 +17,7 @@ class Visualization(object):
         self.patient_driver = patient_driver
         self.subtype2gene = subtype2gene
 
-    def read_graph_from_cytotalk_output_v4(self, patientpath):
+    def read_graph_from_cytotalk_output(self, patientpath):
         """
         read communication networks from cytotalk outputs with edge cost
         :param self:
@@ -238,24 +238,23 @@ class Visualization(object):
         tested_FP_list = association_test_ret['idx of passed FP']
         external_matrix = association_test_ret['external matrix']
         for patient in patient_list:
-            if(patient == 'CID3921E'):
-                print(patient)
-                output_dir = os.path.join(outputdir, genome_factor, patient)
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
-                patient_path = os.path.join(patients_path, patient)
-                pcsf_network, original_network = self.read_graph_from_cytotalk_output_v4(patient_path)
-                for i in range(k):
-                    if(external_matrix.loc[patient,tested_FP_list[i]]==0):
-                        continue
-                    g = self.frequent_subgraphs[tested_FP_list[i]].to_graph(
-                        gid=tested_FP_list[i])
-                    patient_shortest_network = self.generate_pathway_of_a_FP(internal_gene, g, pcsf_network,
-                                                                             original_network)
-                    if (patient_shortest_network.shape[0] > 0):
-                        print('{} th frequent pattern'.format(tested_FP_list[i]))
-                    self.output_shortest_network_info_pre_FP(tested_FP_list[i], patient_shortest_network,
-                                                             output_dir)
+            print(patient)
+            output_dir = os.path.join(outputdir, genome_factor, patient)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            patient_path = os.path.join(patients_path, patient)
+            pcsf_network, original_network = self.read_graph_from_cytotalk_output_v4(patient_path)
+            for i in range(k):
+                if(external_matrix.loc[patient,tested_FP_list[i]]==0):
+                    continue
+                g = self.frequent_subgraphs[tested_FP_list[i]].to_graph(
+                    gid=tested_FP_list[i])
+                patient_shortest_network = self.generate_pathway_of_a_FP(internal_gene, g, pcsf_network,
+                                                                         original_network)
+                if (patient_shortest_network.shape[0] > 0):
+                    print('{} th frequent pattern'.format(tested_FP_list[i]))
+                self.output_shortest_network_info_pre_FP(tested_FP_list[i], patient_shortest_network,
+                                                         output_dir)
         return
 
     def generate_top_k_pathway_of_sample_with_same_genome_factor(self, genome_factor, k, patients_path,
@@ -276,14 +275,13 @@ class Visualization(object):
 
 
         for patient in patient_list:
-            if(patient=='CID45171'):
-                output_dir = os.path.join(outputdir, genome_factor, patient)
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
-                patient_path = os.path.join(patients_path, patient)
-                patient_shortest_network = self.generate_top_k_in2outpathway(internal_gene, k, patient_path,
-                                                                             self.association_test_ret)
-                self.output_shortest_network_info(patient_shortest_network, output_dir)
+            output_dir = os.path.join(outputdir, genome_factor, patient)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            patient_path = os.path.join(patients_path, patient)
+            patient_shortest_network = self.generate_top_k_in2outpathway(internal_gene, k, patient_path,
+                                                                         self.association_test_ret)
+            self.output_shortest_network_info(patient_shortest_network, output_dir)
             # self.output_network_sif(patient_shortest_network,output_dir+'/shortest_paths.sif')
             # patient_shortest_network.to_csv(output_dir+'/shortest_paths.txt',sep='\t',index = False)
         return

@@ -16,6 +16,18 @@ class Driver2Comm(object):
 
     def __init__(self,minsup,inputPATH,patient_metadata:pd.DataFrame,num_celltype=3,mode = 'driver',outputPATH = './result',
                  subtype_annotation = '/input/brca_annotation.csv',visualize = False,cancer_type = 'Lung'):
+        """
+
+        :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
+        :param inputPATH: the input file path of Cytotalk input
+        :param patient_metadata: the metadata of patients, must contain: driver gene of each patient
+        :param num_celltype: the number of cell type in Multi-Cell-Type-Communication MCTC networks
+        :param mode: cancer subtype or driver
+        :param outputPATH: the output file path
+        :param subtype_annotation: the subtype_annotation file path
+        :param visualize: if user visualize the cancer driver associated CCC signature or not
+        :param cancer_type: type of cancer
+        """
 
         self.minsup = minsup
         self.num_celltype = num_celltype
@@ -174,9 +186,7 @@ class Driver2Comm(object):
                 print("p values of FP {} : {}".format(tested_FP_list[sorted_idx[i]], p_value_list[sorted_idx[i]]))
                 graph_annotation = {'title':('Communication signature '+ str(i+1)),'P':p_value_list[sorted_idx[i]]}
                 g.plot(annotation = graph_annotation,save=True,path=os.path.join('./output/result/',internal_factor+str(i+1)+'.pdf'))
-                #candidate_targets_g = self.get_candidate_target(g,self.external_matrix,self.drivers,self.internal_matrix)
-                #for candidate_target in candidate_targets_g:
-                #    self.candidate_targets.append(candidate_target)
+
         return self
     def output_internal_and_external_matrix(self):
         external_name = self.cancer_type+'ExternalSup'+str(self.minsup)+'.csv'

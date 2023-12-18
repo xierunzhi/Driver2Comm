@@ -102,7 +102,7 @@ Rscript construction_ccc_network.R
 #### Step1: Identification of cancer-driver assoicatied communicaiton patterns
 
 After construction of CCC network by Cytotalk, we started to identify the cancer-driver associated communicaiton patterns. 
-The rest analysis of Driver2Comm is fully based on python implement. Based on the excellent flexibility and interactivity of jupyter notebook, we recommend you to use notebook for all of Driver2Comm's remaining analyses..
+The rest analysis of Driver2Comm is fully based on python implement. Based on the excellent flexibility and interactivity of jupyter notebook, we recommend you to use notebook for all of Driver2Comm's remaining analyses.
 
 ```python
 d2c_instance = Driver2Comm(
@@ -113,14 +113,36 @@ d2c_instance = Driver2Comm(
                  	subtype_annotation = ,
                  	visualize = False,
                  	cancer_type = 'Lung'
+    """
+    parameters:
+    __________________
+
+        :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
+        :param inputPATH: the input file path of Cytotalk input
+        :param patient_metadata: the metadata of patients, must contain: driver gene of each patient
+        :param num_celltype: the number of cell type in Multi-Cell-Type-Communication MCTC networks
+        :param mode: cancer subtype or driver
+        :param outputPATH: the output file path
+        :param subtype_annotation: the subtype_annotation file path
+        :param visualize: if user visualize the cancer driver associated CCC signature or not
+        :param cancer_type: type of cancer
+    __________________
+        
+    """
 )
-d2c_instance.run(inputPATH,patient_path)
+# run Driver2Comm to identify cancer driver associated CCC signatures.
+d2c_instance.run()
 ```
 
 #### Step2: Downstream analysis of Driver2Comm
 
+We offer several ways to visualize and evaluate the cancer driver associated CCC signatures identified by Driver2Comm.
 
-#### Output of Driver2Comm
+```python
+d2c_instance.display_associated_FP()
+# display all cancer driver associated CCC signatures on screen.
+
+```
 
 ## Maintainer
 
