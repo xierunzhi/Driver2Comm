@@ -35,11 +35,9 @@ R :  tested with R 4.0.3
    conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
    conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda
    conda env create -f environment.yml
-   # or
-   conda create --name Driver2Comm --file requirements.txt
    
    ```
-
+   
 2. Install R and the Cytotalk package
 
    ``` bash

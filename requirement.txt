@@ -1,7 +1,0 @@
-pandas
-numpy
-rpy2
-statsmodels
-scipy
-networkx
-matplotlib
