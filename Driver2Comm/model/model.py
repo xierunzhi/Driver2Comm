@@ -6,9 +6,9 @@
 import pandas as pd
 import numpy as np
 import os
-from graph import *
-from external import External
-from association_test import AssociationTest
+from .graph import *
+from .external import External
+from .association_test import AssociationTest
 import codecs
 import collections
 

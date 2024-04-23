@@ -7,7 +7,6 @@ AUTO_EDGE_ID = -1
 VACANT_EDGE_COST = -1
 VACANT_VERTEX_TYPE = -1
 from queue import PriorityQueue
-#from multiprocessing import queues
 import itertools
 class Edge(object):
     """Edge class."""

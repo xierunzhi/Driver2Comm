@@ -1,12 +1,8 @@
-import codecs
-import copy
 from gSpan import *
 from gSpan import record_timestamp
-from graph import *
 import collections
 import pandas as pd
 import numpy as np
-import os
 
 class External(gSpan):
     """

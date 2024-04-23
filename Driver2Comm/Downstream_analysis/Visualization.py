@@ -3,9 +3,9 @@ import numpy as np
 import codecs
 import os
 import CytoTalk_network
-from CytoTalk_network import VACANT_EDGE_ID
-from CytoTalk_network import VACANT_VERTEX_LABEL
-from CytoTalk_network import VACANT_EDGE_COST
+from .CytoTalk_network import VACANT_EDGE_ID
+from .CytoTalk_network import VACANT_VERTEX_LABEL
+from .CytoTalk_network import VACANT_EDGE_COST
 from queue import PriorityQueue
 import collections
 
