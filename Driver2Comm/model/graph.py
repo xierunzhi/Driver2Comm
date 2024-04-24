@@ -109,7 +109,7 @@ class Graph(object):
             self.set_of_elb[elb].add((to, frm))
         return self
 
-    def display(self,output2screen = True):
+    def display(self,output2screen = False):
         """Display the graph as text."""
         display_str = ''
         display_str += 't # {}\n'.format(self.gid)
@@ -151,9 +151,9 @@ class Graph(object):
         for vid, v in self.vertices.items():
             gene, CT = v.vlb.split('__')
             vlbs[vid] = gene
-            if CT == 'Macrophages':
+            if CT == 'Macrophage':
                 colors_list.append('#9ecae1')
-            elif CT == 'Cd8+Tcells':
+            elif CT == 'CD8+T_cell':
                 colors_list.append('#a1d99b')
             else:
                 colors_list.append('#fb6a4a')
@@ -167,11 +167,9 @@ class Graph(object):
                     gnx.add_edge(vid, to, label=e.elb,length=2)
                     elbs[(vid, to)] = e.elb
         fsize = (4,4)
-        #fsize = (min(160, 1 * len(self.vertices)),
-        #         min(160, 1 * len(self.vertices)))
-        plt.figure(3, figsize=fsize)    # the unique identifier is 3
+        plt.figure(figsize=fsize)    # the unique identifier is 3
         pos = nx.circular_layout(gnx,scale=2)
-        plt.rcParams['figure.figsize'] = (4.0, 4.0)
+        plt.rcParams['figure.figsize'] = fsize
         if(len(vlbs)>2):
             nx.draw_networkx(gnx, pos, arrows=False, with_labels=True, node_size=300
                              , font_size=15,node_color = colors_list,labels = vlbs)
@@ -181,14 +179,15 @@ class Graph(object):
         nx.draw_networkx_edge_labels(gnx, pos,edge_labels=elbs)
         ax = plt.gca()
         ax.margins(1)
-
-        plt.show()
-        plt.axis('off')
+        ax.axis('off')
         if annotation is not None:
             plt.suptitle(annotation['title'])
-            plt.title('adjust P values = {:.4f}'.format(annotation['P']))
-            plt.plot()
+            if annotation['P']< 0.0001:
+                plt.title('adjust P values < 0.0001')
+            else:
+                plt.title('adjust P values = {:.4f}'.format(annotation['P']))
+
+        plt.show()
 
         if save:
             plt.savefig(path)
-        plt.cla()

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import codecs
 import os
-import CytoTalk_network
+from .CytoTalk_network  import c2c_network
 from .CytoTalk_network import VACANT_EDGE_ID
 from .CytoTalk_network import VACANT_VERTEX_LABEL
 from .CytoTalk_network import VACANT_EDGE_COST
@@ -25,8 +25,8 @@ class Visualization(object):
         This directory should contain subdirectory named celltypeA-cellTypeB
         :return:
         """
-        original_network = CytoTalk_network.c2c_network()
-        pcsf_network = CytoTalk_network.c2c_network()
+        original_network = c2c_network()
+        pcsf_network = c2c_network()
         # read the final network
         celltype_list = os.listdir(patientpath)
         for celltype in celltype_list:
@@ -70,7 +70,7 @@ class Visualization(object):
     def get_in2ex_pathway(self, internal_gene, external_gene, pcsf_network, original_network):
         if internal_gene not in original_network.set_of_vlb or external_gene not in pcsf_network.set_of_vlb:
             return pd.DataFrame()
-        internal_network = CytoTalk_network.c2c_network()
+        internal_network = c2c_network()
         internal_network.add_vertex(internal_gene)
         if (internal_gene in pcsf_network.set_of_vlb):
             internal_network = self.combine_network(internal_network, pcsf_network)
@@ -78,7 +78,7 @@ class Visualization(object):
             original_network.sort_edges()
             internal_network = self.extend_network(pcsf_network.set_of_vlb, internal_network, original_network)
             internal_network = self.combine_network(internal_network, pcsf_network)
-        external_network = CytoTalk_network.c2c_network()
+        external_network = c2c_network()
         if (external_gene in pcsf_network.set_of_vlb):
             external_network = self.combine_network(internal_network, external_network)
         else:
@@ -104,7 +104,7 @@ class Visualization(object):
         # once jump out of circle, we find the intersect part between internal and external
         return internal_network
 
-    def combine_network(self, internal_network: CytoTalk_network.c2c_network, external_network):
+    def combine_network(self, internal_network: c2c_network, external_network):
         # combined the internal network and external network to internal network
         combined_network = internal_network
         for label, vertex in external_network.vertices.items():

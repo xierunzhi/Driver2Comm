@@ -1,0 +1,21 @@
+Metadata-Version: 2.1
+Name: Driver2Comm
+Version: 0.0.1
+Summary: A computational framework for associating cancer cell-intrinsic driver genes with -extrinsic cell-cell communication
+Home-page: https://github.com/xierunzhi
+Author: Runzhi Xie, Yuxuan Hu*, Gao Lin*
+Author-email: rzxie1998@gmail.com
+Maintainer: Runzhi Xie
+Maintainer-email: rzxie1998@gmail.com
+License: MIT Licence
+Keywords: scRNA-seq,cell-cell communication,cancer driver gene,tumor microenvironment
+Platform: any
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: statsmodels
+Requires-Dist: networkx
+Requires-Dist: matplotlib
+Requires-Dist: scipy
+
+For systematic investigation of the relationship between cancer cell-intrinsic and -extrinsic factors, we develop a general computational framework, Driver2Comm, for associating driver genes of cancer cells with CCC in the TME using single-cell transcriptomics data. 

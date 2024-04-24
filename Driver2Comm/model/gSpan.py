@@ -9,10 +9,10 @@ import copy
 import itertools
 import time
 
-from graph import AUTO_EDGE_ID
-from graph import Graph
-from graph import VACANT_GRAPH_ID
-from graph import VACANT_VERTEX_LABEL
+from .graph import AUTO_EDGE_ID
+from .graph import Graph
+from .graph import VACANT_GRAPH_ID
+from .graph import VACANT_VERTEX_LABEL
 
 import pandas as pd
 
@@ -329,8 +329,9 @@ class gSpan(object):
 
     def _report_size1(self, g, support):
         g.display(self.output2screen)
-        print('\nSupport: {}'.format(support))
-        print('\n-----------------\n')
+        if self.output2screen:
+            print('\nSupport: {}'.format(support))
+            print('\n-----------------\n')
 
     def _report(self, projected):
         self._frequent_subgraphs.append(copy.copy(self._DFScode))

@@ -2,14 +2,13 @@ import os
 import pandas as pd
 import codecs
 from ..model.graph import Graph,AUTO_EDGE_ID
-def formulate_c2c_network(inputPATH,outputPATH):
-    input_file_path = inputPATH
-    dir_list = os.listdir(input_file_path)
-    dir_list.sort()
-    output_file = os.path.join(outputPATH, 'c2c_network.data')
+def formulate_c2c_network(input_dir,output_dir,patient_list):
+    input_file_path = input_dir
+    output_file = os.path.join(output_dir, 'c2c_network.data')
     output = codecs.open(output_file, 'w', 'utf-8')
     count = 0
-    for sample_name in dir_list:
+    for sample_name in patient_list:
+        print(sample_name)
         celltype_list = os.listdir(os.path.join(input_file_path, sample_name))
         output.write("t # " + str(count))
         output.write("\n")
@@ -17,6 +16,8 @@ def formulate_c2c_network(inputPATH,outputPATH):
         vertex_count = 0
         for celltype_name in celltype_list:
             network_path = os.path.join(input_file_path, sample_name, celltype_name, "FinalNetwork.txt")
+            if not os.path.exists(network_path):
+                continue
             network = pd.read_table(network_path, sep='\t')
             for i in range(network.shape[0]):
                 edge = network.iloc[i,]
@@ -41,13 +42,13 @@ def formulate_c2c_network(inputPATH,outputPATH):
     output.write('t # -1')
     output.close()
     return
-    def read_c2c_network(inputPATH):
+def read_c2c_network(inputPATH):
         """
         read the formulated c2c_network data
         :return:
         """
         c2c_network = dict()
-        inputPATH = os.path.join(inputPATH,'c2c_network.data')
+        #inputPATH = os.path.join(inputPATH,'c2c_network.data')
         with codecs.open(inputPATH, 'r', 'utf-8') as f:
             lines = [line.strip() for line in f.readlines()]
             tgraph, graph_cnt = None, 0

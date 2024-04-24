@@ -6,60 +6,71 @@
 import pandas as pd
 import numpy as np
 import os
-from .graph import *
 from .external import External
 from .association_test import AssociationTest
-import codecs
 import collections
 
 class Driver2Comm(object):
 
-    def __init__(self,c2c_network,minsup,patient_metadata:pd.DataFrame,num_celltype=3,outputPATH = './result',
-                 visualize = False,cancer_type = 'Lung'):
+    def __init__(self,c2c_network:dict,patient_metadata:pd.DataFrame,minsup,outputPATH = './result',
+                 cancer_type = 'Brca'):
         """
 
-        :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
-        :param patient_metadata: the metadata of patients, must contain: driver gene of each patient
-        :param num_celltype: the number of cell type in Multi-Cell-Type-Communication MCTC networks
-        :param mode: cancer subtype or driver
-        :param outputPATH: the output file path
-        :param subtype_annotation: the subtype_annotation file path
-        :param visualize: if user visualize the cancer driver associated CCC signature or not
-        :param cancer_type: type of cancer
+        :param c2c_network:
+        :param patient_metadata:
+        :param minsup:
+        :param outputPATH:
+        :param cancer_type:
         """
 
         self.minsup = minsup
-        self.num_celltype = num_celltype
         self.outputPATH = outputPATH
         self.c2c_network = c2c_network
-        self.patient_info = dict()
+        self.patient_info = dict()      # patient_info[Graph id] = patient label
         self.external_matrix = None
         self.internal_matrix = None
-        self.patient_driver = dict()        #patient_driver[patient name] = patient driver
+        self.patient_driver = dict()        # patient_driver[patient name] = patient driver
         self.frequent_subgraphs = None
         self.candidate_targets = None
         self.drivers = dict()       #example: drivers[BRAF] = 0
         self.association_test_ret = None
-        self._visualize = visualize
         self.cancer_type = cancer_type
         if not os.path.exists(self.outputPATH):
             os.makedirs(self.outputPATH)
         self.get_patient_info(patient_metadata)
-        self.formulate_c2c_network()
-        self.read_c2c_network()
-
-
 
 
     def get_patient_info(self,patient_metadata):
+        """
+        extract patient label and driver information from patient_metadata
+        :param patient_metadata: pd.Dataframe
+        :return:
+        """
+        assert 'Patient_id' in patient_metadata.columns, 'Please check again if the column name of patient id is correct!'
+        assert 'Driver' in patient_metadata.columns, 'Please check again if the column name of Driver is correct!'
         for i in range(patient_metadata.shape[0]):
-            self.patient_info[i] = patient_metadata.iloc[i,0]
-            self.patient_driver[patient_metadata.iloc[i,0]] = patient_metadata.iloc[i,1]
+
+            self.patient_info[i] = patient_metadata.loc[i,'Patient_id']
+            self.patient_driver[patient_metadata.loc[i,'Patient_id']] = patient_metadata.loc[i,'Driver']
         return self
 
-    def model_external_factors(self):
-        external = External(self.c2c_network,min_support=self.minsup,patient_info = self.patient_info,visualize = self._visualize)
+    def run(self,visualize = False):
+        """
+        main process of Driver2Comm
+        :return:
+        """
+        print('modeling internal and external factor!')
+        self.model_internal_and_external_factor(visualize)
+        print('Start Associating testing!')
+        self.association_test(threshold = 0.05)
+        print('Finishing Associating testing!')
+        return self
+
+    def model_external_factors(self,visualize = False):
+        external = External(self.c2c_network,min_support=self.minsup,patient_info = self.patient_info,visualize = visualize)
+        print('Start frequent subnetwork mining!')
         external.run()
+        print('frequent subnetwork mining finishing!')
         self.frequent_subgraphs = external.get_frequent_pattern()
         self.external_matrix = external.output()
         return self
@@ -79,28 +90,19 @@ class Driver2Comm(object):
         # print(internal_dataframe)
         self.internal_matrix = pd.DataFrame(internal_dataframe, index=driver_set, columns=patients)
         return self
-    def model_internal_and_external_factor(self):
-        self.model_external_factors()
+    def model_internal_and_external_factor(self,visualize= False):
+
+        self.model_external_factors(visualize)
         self.model_internal_factor()
         #ret = pd.concat([self.external_matrix,self.internal_matrix],axis=0)
         self.output_internal_and_external_matrix()
         return self
 
-    def run(self):
-        """
-        main process of Driver2Comm
-        :return:
-        """
-        self.model_internal_and_external_factor()
-        self.association_test(threshold = 0.05)
-        self.generate_combination_targets()
-
     def association_test(self,threshold):
         a = AssociationTest(self.internal_matrix,self.external_matrix,threshold)
         self.association_test_ret = a.association_test()
-        #self.display_associated_FP()
         return self
-    def display_associated_FP(self):
+    def display_associated_FP(self,save = False):
         for i in range(len(self.association_test_ret)):
             association_test_ret = self.association_test_ret[i]
             internal_factor = association_test_ret['internal']
@@ -111,10 +113,10 @@ class Driver2Comm(object):
                 print(internal_factor)
                 print('Rank {}'.format(i+1))
                 g = self.frequent_subgraphs[tested_FP_list[sorted_idx[i]]].to_graph(gid = tested_FP_list[sorted_idx[i]])
-                g.display()
+                g.display(output2screen = True)
                 print("p values of FP {} : {}".format(tested_FP_list[sorted_idx[i]], p_value_list[sorted_idx[i]]))
                 graph_annotation = {'title':('Communication signature '+ str(i+1)),'P':p_value_list[sorted_idx[i]]}
-                g.plot(annotation = graph_annotation,save=True,path=os.path.join('./output/result/',internal_factor+str(i+1)+'.pdf'))
+                g.plot(annotation = graph_annotation,save=save,path=os.path.join(self.outputPATH,internal_factor+'_associated_CCC_signature_'+str(i+1)+'.pdf'))
 
         return self
     def output_internal_and_external_matrix(self):
@@ -139,6 +141,7 @@ class Driver2Comm(object):
             output_file.write(g.display(output2screen=False))
         output_file.close()
         return self
+
     def output_association_FP(self,outputPATH = None):
         if outputPATH is None:
             outputPATH = self.outputPATH
@@ -150,7 +153,6 @@ class Driver2Comm(object):
         if not os.path.isdir(outputPATH):
             os.makedirs(outputPATH)
         output_file = codecs.open(os.path.join(outputPATH,'AssociationTestResult.txt'),'w','utf-8')
-        output_file.write('Mode : {0} \n'.format(self.mode.capitalize()))
         for i in range(len(self.association_test_ret)):
             association_test_ret = self.association_test_ret[i]
             internal_factor = association_test_ret['internal']
@@ -162,9 +164,10 @@ class Driver2Comm(object):
                 output_file.write('Rank {}\n'.format(i+1))
                 g = self.frequent_subgraphs[tested_FP_list[sorted_idx[i]]].to_graph(gid = tested_FP_list[sorted_idx[i]])
                 output_file.write(g.display(output2screen = False))
-                output_file.write("p values of FP {} : {}\n".format(tested_FP_list[sorted_idx[i]], p_value_list[sorted_idx[i]]))
+                output_file.write("adjust p values of FP {} : {}\n".format(tested_FP_list[sorted_idx[i]], p_value_list[sorted_idx[i]]))
         output_file.close()
         return self
+
     def identify_co_occurrence_Fp(self,association_test_ret:dict):
         internal_vec = association_test_ret['internal vec']
         external_matrix = association_test_ret['external matrix']
@@ -178,20 +181,8 @@ class Driver2Comm(object):
                 co_occur_list.append(i)
         return co_occur_list
 
-
-    def get_subtype_gene(self,annotatedPATH):
-        subtype_gene_matrix = pd.read_csv(annotatedPATH)
-        subtype2gene = collections.defaultdict(list)
-        for i in range(subtype_gene_matrix.shape[0]):
-            subtype2gene[subtype_gene_matrix.iloc[i,0]].append(subtype_gene_matrix.iloc[i,1])
-        return subtype2gene
-    def get_candidate_target(self,g,internal,mode = 'driver'):
-        if mode == 'driver':
-            return self.get_candidate_target_driver(g,internal)
-        elif mode == 'subtype':
-            return self.get_candidate_target_subtype(g,internal)
-        else:
-            raise Exception('Please correct the mode to driver or subtype')
+    def get_candidate_target(self,g,internal):
+        return self.get_candidate_target_driver(g,internal)
 
     def filter_celltype(self,node:str):
         gene,celltype = node.split('__')
@@ -203,29 +194,20 @@ class Driver2Comm(object):
             candidate_targets.append((internal_gene, self.filter_celltype(g.vertices[vid].vlb)))
         return candidate_targets
 
-    def get_candidate_target_subtype(self,g,internal):
-        internal_gene_list = self.subtype2gene[internal]
-        candidate_targets = list()
-        for vid in g.vertices:
-            for internal_gene in internal_gene_list:
-                if internal_gene != 'NOGENE':
-                    candidate_targets.append((internal_gene,self.filter_celltype(g.vertices[vid].vlb)))
-        return candidate_targets
 
-    def generate_combination_targets_of_an_internal_factor(self,frequent_pattern,gid_list,internal,mode = 'driver'):
+    def generate_combination_targets_of_an_internal_factor(self,frequent_pattern,gid_list,internal):
         """
         generate all the combination targets of a subtype or an internal gene
         :param frequent_pattern: the DFScode of all the frequent subgraphs
         :param gid_list: list of tested Frequetn subgraph id
         :param internal: the internal factor of combination therapy : can be a subtype or a driver
-        :param mode: driver or subtype
         :return:
         """
         candidate_targets = list()
         candidate_targets_dict = dict()
         for i in gid_list:
             g = frequent_pattern[i].to_graph(gid=i)
-            candidate_targets_g = self.get_candidate_target(g,internal,mode)
+            candidate_targets_g = self.get_candidate_target(g,internal)
             for candidate_target in candidate_targets_g:
                 if not candidate_targets_dict.__contains__(candidate_target):
                     candidate_targets_dict[candidate_target] = 1
@@ -242,7 +224,7 @@ class Driver2Comm(object):
                 self.frequent_subgraphs,
                 tested_FP_list,
                 internal_factor,
-                self.mode)
+               )
         self.candidate_targets = candidate_targets
 
     def output_candidated_targets(self):
@@ -264,6 +246,4 @@ class Driver2Comm(object):
                 output_file.write('{0} {1}\n'.format(target_pair[0].upper(),target_pair[1].upper()))
         output_file.close()
         return self
-
-
 

@@ -1,5 +1,5 @@
-from gSpan import *
-from gSpan import record_timestamp
+from .gSpan import *
+from .gSpan import record_timestamp
 import collections
 import pandas as pd
 import numpy as np
@@ -8,7 +8,7 @@ class External(gSpan):
     """
 
     """
-    def __init__(self,graphs,min_support,patient_info,visualize = False,output2screen = True):
+    def __init__(self,graphs,min_support,patient_info,visualize = False,output2screen = False):
         super(External, self).__init__(graphs=graphs,min_support=min_support,visualize = visualize,output2screen=output2screen)
         self.subgraph_to_sample = dict()
         self.sample_info = patient_info
@@ -42,22 +42,9 @@ class External(gSpan):
         g = self._DFScode.to_graph(gid=next(self._counter),
                                    is_undirected=self._is_undirected)
         display_str = g.display(self.output2screen)
+        display_str += '\nSupport: '+str(self._support)
         if self.output2screen:
             print('\nSupport: {}'.format(self._support))
-        # Add some report info to pandas dataframe "self._report_df".
-        self._report_df = pd.concat(
-            [ self._report_df,
-            pd.DataFrame(
-                {
-                    'support': [self._support],
-                    'description': [display_str],
-                    'num_vert': self._DFScode.get_num_vertices()
-                },
-                index=[int(repr(self._counter)[6:-1])]
-            )
-            ],
-            axis=0
-        )
         if self._visualize:
             g.plot()
         if self._where:
@@ -65,11 +52,25 @@ class External(gSpan):
             output_idx = list(set([p.gid for p in projected]))
             if(not self.subgraph_to_sample.__contains__(g.gid)):
                 self.subgraph_to_sample[g.gid] = output_idx
+            display_str += '\nwhere: {}'.format(output)
             if self.output2screen:
                 print('where: {}'.format(output))
         if self.output2screen:
             print('\n-----------------\n')
-
+        # Add some report info to pandas dataframe "self._report_df".
+        self._report_df = pd.concat(
+            [self._report_df,
+             pd.DataFrame(
+                 {
+                     'support': [self._support],
+                     'description': [display_str],
+                     'num_vert': self._DFScode.get_num_vertices()
+                 },
+                 index=[int(repr(self._counter)[6:-1])]
+             )
+             ],
+            axis=0
+        )
     def output(self):
         """
 

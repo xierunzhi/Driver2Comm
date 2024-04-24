@@ -92,7 +92,25 @@ from Driver2Comm import formulate_c2c_network
 formulate_c2c_network(inputPATH,outputPATH)
 ```
 
-Driver2Comm also need patient driver information
+
+Then in your output directory, you will find a `c2c_network.data` , and the  `c2c_network.data` is in following format.
+
+Driver2Comm can extend to other CCC inferences method, in this case, you can also directly formulate you cell-cell communication as the following format.
+
+```txt
+t # 1 			# t # 1 means the MCTC network of patient 1
+v 0 FERMT3__Macrophages # vertex data was formualed as 'v vertex_id vertex_label'
+v 1 MITF__Macrophages
+e 0 1 0					# edge was formualed as 'e vertex_id_a vertex_id_b edge label'
+...
+t # n
+v 1 SOCS1__Cd8+Tcells
+v 1 CD52__Cd8+Tcells
+e 0 1 0
+t # -1			# t # -1 represent as the end of this file
+```
+
+Driver2Comm also need patient driver information as input
 
 |      | Patient_id | Driver |
 | ---- | ---------- | ------ |
@@ -100,13 +118,6 @@ Driver2Comm also need patient driver information
 | 1    |       patient2       |   ESR1     |
 | 2    |       patient3       |   ERBB2     |
 | 3    |       patient4      |    ERBB2    |
-
-Then in your output directory, you will find a `c2c_network.data` , and the  `c2c_network.data` is in following format.
-
-```txt
-t#
-```
-
 
 
 ### Usage
@@ -129,6 +140,8 @@ After construction of CCC network by Cytotalk, we started to identify the cancer
 The rest analysis of Driver2Comm is fully based on python implement. Based on the excellent flexibility and interactivity of jupyter notebook, we recommend you to use notebook for all of Driver2Comm's remaining analyses.
 
 ```python
+import Driver2Comm as dc
+c2c_network = 
 d2c_instance = Driver2Comm(
 					minsup = ,
 					num_celltype=3,

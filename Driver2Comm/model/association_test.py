@@ -60,7 +60,7 @@ class AssociationTest(object):
             pvalue_sorted_idx = np.argsort(pvalue_list)
             pvalue_list = list(np.take(pvalue_list,pvalue_sorted_idx))
             tested_fp_list = list(np.take(pass_idx[0],pvalue_sorted_idx))
-            print("Number of Frequent Pattern passed the test: {}".format(len(pvalue_list)))
+            print("Number of {}-associated CCC signature: {}".format(self.internal.index[i],len(pvalue_list)))
             ret.append({'internal':self.internal.index[i],'external matrix':self.external_combination.T
                            ,'idx of passed FP':tested_fp_list,'internal vec':internal_vec
                         ,'pvalue of passed FP':pvalue_list})
