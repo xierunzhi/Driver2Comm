@@ -1,8 +1,0 @@
-LICENSE
-README.md
-setup.py
-Driver2Comm.egg-info/PKG-INFO
-Driver2Comm.egg-info/SOURCES.txt
-Driver2Comm.egg-info/dependency_links.txt
-Driver2Comm.egg-info/requires.txt
-Driver2Comm.egg-info/top_level.txt

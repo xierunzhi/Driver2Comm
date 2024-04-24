@@ -141,34 +141,27 @@ The rest analysis of Driver2Comm is fully based on python implement. Based on th
 
 ```python
 import Driver2Comm as dc
-c2c_network = 
-d2c_instance = Driver2Comm(
-					minsup = ,
-					num_celltype=3,
-					mode = 'driver',
-					outputPATH ='./result',
-                 	subtype_annotation = ,
-                 	visualize = False,
-                 	cancer_type = 'Lung'
+c2c_network = dc.read_c2c_network(os.path.join('./data/c2c_network.data'))
+model = Driver2Comm(
+					c2c_network = c2c_network,
+                    patient_metadata=patient_metadata,
+                    minsup= 20,
+                    outputPATH= './data/Driver2Comm_output',
+                    cancer_type='Brca'
     """
     parameters:
     __________________
-
-        :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
-        :param inputPATH: the input file path of Cytotalk input
+        :param c2c_network: the formulated cell-cell communication network data
         :param patient_metadata: the metadata of patients, must contain: driver gene of each patient
-        :param num_celltype: the number of cell type in Multi-Cell-Type-Communication MCTC networks
-        :param mode: cancer subtype or driver
-        :param outputPATH: the output file path
-        :param subtype_annotation: the subtype_annotation file path
-        :param visualize: if user visualize the cancer driver associated CCC signature or not
+        :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
+        :param outputPATH: the path where output files place
         :param cancer_type: type of cancer
     __________________
         
     """
 )
 # run Driver2Comm to identify cancer driver associated CCC signatures.
-d2c_instance.run()
+model.run()
 ```
 
 #### Step2: Downstream analysis of Driver2Comm
@@ -176,9 +169,8 @@ d2c_instance.run()
 We offer several ways to visualize and evaluate the cancer driver associated CCC signatures identified by Driver2Comm.
 
 ```python
-d2c_instance.display_associated_FP()
+model.display_associated_FP()
 # display all cancer driver associated CCC signatures on screen.
-
 ```
 
 ## Maintainer

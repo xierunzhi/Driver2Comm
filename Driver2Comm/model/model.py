@@ -16,11 +16,11 @@ class Driver2Comm(object):
                  cancer_type = 'Brca'):
         """
 
-        :param c2c_network:
-        :param patient_metadata:
-        :param minsup:
-        :param outputPATH:
-        :param cancer_type:
+        :param c2c_network: the formulated cell-cell communication network data
+        :param patient_metadata: the metadata of patients, must contain: driver gene of each patient
+        :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
+        :param outputPATH: the path where output files place
+        :param cancer_type: type of cancer
         """
 
         self.minsup = minsup
