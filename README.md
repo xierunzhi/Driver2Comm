@@ -20,7 +20,6 @@ R :  tested with R 4.0.3
 * scipy (tested v1.11.4)
 * networkx (tested v3.2.1)
 * matplotlib (tested v)
-* pcst-fast (tested v1.0.7)
 
 #### R dependencies
 
@@ -49,7 +48,12 @@ R :  tested with R 4.0.3
    > install.packages("devtools")
    > devtools::install_github("tanlabcode/CytoTalk")
    ```
-
+3. Install Driver2Comm
+   install Driver2Comm using pip
+   ``` bash
+      pip install Driver2Comm -U
+   ```
+   
 ##### Notation:
 
 * For detail information of Cytotalk installation, please refer to [tanlabcode/Cytotalk](https://github.com/tanlabcode/CytoTalk)  
@@ -58,30 +62,52 @@ R :  tested with R 4.0.3
 
 ### Preparation
 
-According to Cytotalk's requirement, the input data folder should be agreed with following struture.
+If you use CytoTalk as your MCTC network construction algorthm, the input data folder should be agreed with following structure.
 
 ```txt
-── Cytotalk_input
+── Cytotalk_output
    ├─ patient1
-   		├─ scRNAseq_Tumorcells.csv
-       	├─ scRNAseq_BCells.csv
-       	├─ scRNAseq_EndothelialCells.csv
-       	├─ scRNAseq_Fibroblasts.csv
-       	├─ scRNAseq_LuminalEpithelialCells.csv
-       	├─ scRNAseq_Macrophages.csv
-       	└─ scRNAseq_CD8+TCells.csv
+   		├─ Celltype1-Celltype2
+   			├─ FinalNetwork.txt
+       	├─ Celltype1-Celltype3
+       		├─ FinalNetwork.txt
+       	└─ Celltype2-Celltype3
+       		├─ FinalNetwork.txt
    ├─ patient2
-   		├─ scRNAseq_Tumorcells.csv
-       	├─ scRNAseq_BCells.csv
-       	├─ scRNAseq_EndothelialCells.csv
-       	├─ scRNAseq_Fibroblasts.csv
-       	├─ scRNAseq_Macrophages.csv
-       	└─ scRNAseq_CD8+TCells.csv
+   		├─ Celltype1-Celltype2
+   			├─ FinalNetwork.txt
+       	├─ Celltype1-Celltype3
+       		├─ FinalNetwork.txt
+       	└─ Celltype2-Celltype3
+       		├─ FinalNetwork.txt
    ├─ patient3
    		├─ ...
    └─ patient4
    		├─ ...
+   		
 ```
+
+```python
+from Driver2Comm import formulate_c2c_network
+formulate_c2c_network(inputPATH,outputPATH)
+```
+
+Driver2Comm also need patient driver information
+
+|      | Patient_id | Driver |
+| ---- | ---------- | ------ |
+| 0    |       patient1     |    ESR1    |
+| 1    |       patient2       |   ESR1     |
+| 2    |       patient3       |   ERBB2     |
+| 3    |       patient4      |    ERBB2    |
+
+Then in your output directory, you will find a `c2c_network.data` , and the  `c2c_network.data` is in following format.
+
+```txt
+t#
+```
+
+
 
 ### Usage
 

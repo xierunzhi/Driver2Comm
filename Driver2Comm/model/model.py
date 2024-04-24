@@ -14,12 +14,11 @@ import collections
 
 class Driver2Comm(object):
 
-    def __init__(self,minsup,inputPATH,patient_metadata:pd.DataFrame,num_celltype=3,mode = 'driver',outputPATH = './result',
-                 subtype_annotation = '/input/brca_annotation.csv',visualize = False,cancer_type = 'Lung'):
+    def __init__(self,c2c_network,minsup,patient_metadata:pd.DataFrame,num_celltype=3,outputPATH = './result',
+                 visualize = False,cancer_type = 'Lung'):
         """
 
         :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
-        :param inputPATH: the input file path of Cytotalk input
         :param patient_metadata: the metadata of patients, must contain: driver gene of each patient
         :param num_celltype: the number of cell type in Multi-Cell-Type-Communication MCTC networks
         :param mode: cancer subtype or driver
@@ -32,8 +31,7 @@ class Driver2Comm(object):
         self.minsup = minsup
         self.num_celltype = num_celltype
         self.outputPATH = outputPATH
-        self.inputPATH = inputPATH
-        self.c2c_network = dict()
+        self.c2c_network = c2c_network
         self.patient_info = dict()
         self.external_matrix = None
         self.internal_matrix = None
@@ -41,85 +39,16 @@ class Driver2Comm(object):
         self.frequent_subgraphs = None
         self.candidate_targets = None
         self.drivers = dict()       #example: drivers[BRAF] = 0
-        self.mode = mode
         self.association_test_ret = None
         self._visualize = visualize
         self.cancer_type = cancer_type
-        if mode == 'subtype':
-            self.subtype2gene = self.get_subtype_gene(subtype_annotation)
         if not os.path.exists(self.outputPATH):
             os.makedirs(self.outputPATH)
-
         self.get_patient_info(patient_metadata)
         self.formulate_c2c_network()
         self.read_c2c_network()
 
-    def read_c2c_network(self):
-        """
-        read the formulated c2c_network data
-        :return:
-        """
-        inputPATH = os.path.join(self.outputPATH,'c2c_network.data')
-        with codecs.open(inputPATH, 'r', 'utf-8') as f:
-            lines = [line.strip() for line in f.readlines()]
-            tgraph, graph_cnt = None, 0
-            for i, line in enumerate(lines):
-                cols = line.split(' ')
-                if cols[0] == 't':
-                    if tgraph is not None:
-                        self.c2c_network[graph_cnt] = tgraph
-                        graph_cnt += 1
-                        tgraph = None
-                    if cols[-1] == '-1':
-                        break
-                    tgraph = Graph(graph_cnt)
-                elif cols[0] == 'v':
-                    tgraph.add_vertex(cols[1], cols[2])
-                elif cols[0] == 'e':
-                    tgraph.add_edge(AUTO_EDGE_ID, cols[1], cols[2], cols[3])
-            # adapt to input files that do not end with 't # -1'
-            if tgraph is not None:
-                self.c2c_network[graph_cnt] = tgraph
-        return self
-    def formulate_c2c_network(self):
-        input_file_path = self.inputPATH
-        dir_list = os.listdir(input_file_path)
-        dir_list.sort()
-        output_file = os.path.join(self.outputPATH,'c2c_network.data')
-        output = codecs.open(output_file, 'w', 'utf-8')
-        count = 0
-        for sample_name in dir_list:
-            celltype_list = os.listdir(os.path.join(input_file_path, sample_name))
-            output.write("t # " + str(count))
-            output.write("\n")
-            vertex_dict = {}
-            vertex_count = 0
-            for celltype_name in celltype_list:
-                network_path = os.path.join(input_file_path, sample_name, celltype_name, "FinalNetwork.txt")
-                network = pd.read_table(network_path, sep='\t')
-                for i in range(network.shape[0]):
-                    edge = network.iloc[i,]
-                    node1 = edge['node1'] + '__' + edge['node1_type']
-                    node2 = edge['node2'] + '__' + edge['node2_type']
-                    if (not vertex_dict.__contains__(node1)):
-                        vertex_dict[node1] = vertex_count
-                        output.write('v {0} {1}'.format(str(vertex_count), node1))
-                        output.write('\n')
-                        vertex_count += 1
-                    if (not vertex_dict.__contains__(node2)):
-                        vertex_dict[node2] = vertex_count
-                        output.write('v {0} {1}'.format(str(vertex_count), node2))
-                        output.write('\n')
-                        vertex_count += 1
-                    output.write(
-                        'e {0} {1} {2}'.format(vertex_dict[node1], vertex_dict[node2], int(edge['is_ct_edge'])))
-                    output.write('\n')
-                    # finish graph edge writing
-            count = count + 1  # turn to the next graph
-        # after all graphs done,write the end marker
-        output.write('t # -1')
-        output.close()
-        return self
+
 
 
     def get_patient_info(self,patient_metadata):
@@ -264,15 +193,10 @@ class Driver2Comm(object):
         else:
             raise Exception('Please correct the mode to driver or subtype')
 
-    def filter_celltype(self,gene:str):
-        if 'Macrophages' in gene:
-            return gene.replace('__Macrophages','')
-        elif 'Cd8+Tcells' in gene:
-            return gene.replace('__Cd8+Tcells','')
-        elif 'Tumor' in gene:
-            return gene.replace('__Tumor','')
-        else:
-            raise Exception('Something wrong in cell type')
+    def filter_celltype(self,node:str):
+        gene,celltype = node.split('__')
+        return gene
+
     def get_candidate_target_driver(self,g,internal_gene):
         candidate_targets = list()
         for vid in g.vertices:
@@ -321,7 +245,7 @@ class Driver2Comm(object):
                 self.mode)
         self.candidate_targets = candidate_targets
 
-    def output_candidated_targets(self,outputPATH,candidate_targets:dict):
+    def output_candidated_targets(self):
         try:
             import os
             import codecs
