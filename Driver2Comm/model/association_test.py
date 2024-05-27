@@ -1,5 +1,5 @@
 """
-association test part of Env2Driver
+association test part of Driver2Comm
 association test : fisher exact test
 """
 import numpy as np
@@ -8,7 +8,7 @@ from scipy.stats import fisher_exact
 import statsmodels.stats.multitest
 class AssociationTest(object):
     """
-    Association part of Env2Driver
+    Association part of Driver2Comm
     """
     def __init__(self, internal_factor : pd.DataFrame,external_factor : pd.DataFrame , threshold = 0.05):
         """
@@ -53,7 +53,7 @@ class AssociationTest(object):
                 external_vec = self.external.iloc[idx,:]
                 pvalue_list.append(self.my_fisher_exact_test(external_vec,internal_vec))
             # perform a multiTest correction
-            pass_list,adjust_pvalue,_,_ = statsmodels.stats.multitest.multipletests(pvalue_list,alpha=0.05,method = 'fdr_bh')
+            pass_list,adjust_pvalue,_,_ = statsmodels.stats.multitest.multipletests(pvalue_list,alpha= self.threshold,method = 'fdr_bh')
             pass_idx = np.where(pass_list)
             self.external_combination = self.external.take(pass_idx[0])
             pvalue_list = np.take(adjust_pvalue,pass_idx[0])

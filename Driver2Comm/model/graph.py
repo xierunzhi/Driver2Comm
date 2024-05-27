@@ -187,7 +187,6 @@ class Graph(object):
             else:
                 plt.title('adjust P values = {:.4f}'.format(annotation['P']))
 
-        plt.show()
-
         if save:
             plt.savefig(path)
+        plt.show()

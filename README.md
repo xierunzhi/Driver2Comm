@@ -2,6 +2,10 @@
 
 A general computational framework for associating cancer cell-intrinsic driver genes with -extrinsic cell-cell communication
 
+## New
+
+1. Driver2Comm is now available for **any non-tumor cell type of interest** in the TME. (May 27th, 2024)
+
 ## Installation
 
 ### Required Packages
@@ -58,14 +62,33 @@ R :  tested with R 4.0.3
 
 * For detail information of Cytotalk installation, please refer to [tanlabcode/Cytotalk](https://github.com/tanlabcode/CytoTalk)  
 
+
+
 ## Tutorial
 
 ### Preparation
 
+the input of Driver2Comm include two part:
+
+1. intrinsic factors: the driver information of patients in this study 
+2. Extrinsic factors: the MCTC networks of patients in this study 
+
+#### Intrinsic factor
+Driver2Comm needs patient driver information as input
+
+|      | Patient_id | Driver |
+| ---- | ---------- | ------ |
+| 0    |       patient1     |    ESR1    |
+| 1    |       patient2       |   ESR1     |
+| 2    |       patient3       |   ERBB2     |
+| 3    |       patient4      |    ERBB2    |
+
+
+#### Extrinsic factor
 If you use CytoTalk as your MCTC network construction algorthm, the input data folder should be agreed with following structure.
 
 ```txt
-── Cytotalk_output
+── CytoTalk_output
    ├─ patient1
    		├─ Celltype1-Celltype2
    			├─ FinalNetwork.txt
@@ -89,9 +112,15 @@ If you use CytoTalk as your MCTC network construction algorthm, the input data f
 
 ```python
 from Driver2Comm import formulate_c2c_network
-formulate_c2c_network(inputPATH,outputPATH)
+inputPATH = './data/CytoTalk_output' 
+outputPATH = './data/Driver2Comm_input'
+patient_list = ['patient1','patient2',...,'patientn']
+formulate_c2c_network(inputPATH,outputPATH,patient_list)
+ 
 ```
 
+**Warning !!!**
+**1. the order of `patient_list` should exactly coincide with  patient driver information matrix**
 
 Then in your output directory, you will find a `c2c_network.data` , and the  `c2c_network.data` is in following format.
 
@@ -110,14 +139,7 @@ e 0 1 0
 t # -1			# t # -1 represent as the end of this file
 ```
 
-Driver2Comm also need patient driver information as input
 
-|      | Patient_id | Driver |
-| ---- | ---------- | ------ |
-| 0    |       patient1     |    ESR1    |
-| 1    |       patient2       |   ESR1     |
-| 2    |       patient3       |   ERBB2     |
-| 3    |       patient4      |    ERBB2    |
 
 
 ### Usage
@@ -142,7 +164,7 @@ The rest analysis of Driver2Comm is fully based on python implement. Based on th
 ```python
 import Driver2Comm as dc
 c2c_network = dc.read_c2c_network(os.path.join('./data/c2c_network.data'))
-model = Driver2Comm(
+model = dc.Driver2Comm(
 					c2c_network = c2c_network,
                     patient_metadata=patient_metadata,
                     minsup= 20,

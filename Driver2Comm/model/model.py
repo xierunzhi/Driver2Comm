@@ -12,7 +12,7 @@ import collections
 
 class Driver2Comm(object):
 
-    def __init__(self,c2c_network:dict,patient_metadata:pd.DataFrame,minsup,outputPATH = './result',
+    def __init__(self,c2c_network:dict,patient_metadata:pd.DataFrame,minsup,association_test_threshold = 0.05,outputPATH = './result',
                  cancer_type = 'Brca'):
         """
 
@@ -35,6 +35,8 @@ class Driver2Comm(object):
         self.drivers = dict()       #example: drivers[BRAF] = 0
         self.association_test_ret = None
         self.cancer_type = cancer_type
+        self.association_test_threshold = association_test_threshold
+        self.patient_metadata = patient_metadata
         if not os.path.exists(self.outputPATH):
             os.makedirs(self.outputPATH)
         self.get_patient_info(patient_metadata)
@@ -62,7 +64,7 @@ class Driver2Comm(object):
         print('modeling internal and external factor!')
         self.model_internal_and_external_factor(visualize)
         print('Start Associating testing!')
-        self.association_test(threshold = 0.05)
+        self.association_test(threshold = self.association_test_threshold)
         print('Finishing Associating testing!')
         return self
 
@@ -76,8 +78,8 @@ class Driver2Comm(object):
         return self
 
     def model_internal_factor(self):
-        patients = [patient for patient in self.patient_driver.keys()]
-        patients.sort()
+        patients = list(self.patient_metadata.index)
+        #patients.sort()
         n_patient = len(patients)
         driver_set = list(set([driver for driver in self.patient_driver.values()]))
         driver_set.sort()
