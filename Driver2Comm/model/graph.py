@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import collections
 import itertools
-
+import matplotlib
 
 VACANT_EDGE_ID = -1
 VACANT_VERTEX_ID = -1
@@ -147,13 +147,15 @@ class Graph(object):
         edgetypes = collections.defaultdict(list)
         gnx = nx.Graph()
         vlbs = {}
+
+        # generate
         colors_list = []
         for vid, v in self.vertices.items():
             gene, CT = v.vlb.split('__')
             vlbs[vid] = gene
             if CT == 'Macrophage':
                 colors_list.append('#9ecae1')
-            elif CT == 'CD8+T_cell':
+            elif CT == 'CD8+T_cell' or CT == 'CD8+ T':
                 colors_list.append('#a1d99b')
             else:
                 colors_list.append('#fb6a4a')
@@ -181,11 +183,11 @@ class Graph(object):
         ax.margins(1)
         ax.axis('off')
         if annotation is not None:
-            plt.suptitle(annotation['title'])
+            plt.suptitle(annotation['title'],fontsize = 'medium')
             if annotation['P']< 0.0001:
-                plt.title('adjust P values < 0.0001')
+                plt.title('adjust P values < 0.0001',fontsize = 'medium')
             else:
-                plt.title('adjust P values = {:.4f}'.format(annotation['P']))
+                plt.title('adjust P values = {:.4f}'.format(annotation['P']),fontsize = 'medium')
 
         if save:
             plt.savefig(path)

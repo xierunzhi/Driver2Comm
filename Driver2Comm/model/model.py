@@ -51,7 +51,6 @@ class Driver2Comm(object):
         assert 'Patient_id' in patient_metadata.columns, 'Please check again if the column name of patient id is correct!'
         assert 'Driver' in patient_metadata.columns, 'Please check again if the column name of Driver is correct!'
         for i in range(patient_metadata.shape[0]):
-
             self.patient_info[i] = patient_metadata.loc[i,'Patient_id']
             self.patient_driver[patient_metadata.loc[i,'Patient_id']] = patient_metadata.loc[i,'Driver']
         return self
@@ -78,7 +77,7 @@ class Driver2Comm(object):
         return self
 
     def model_internal_factor(self):
-        patients = list(self.patient_metadata.index)
+        patients = list(self.patient_metadata['Patient_id'])
         #patients.sort()
         n_patient = len(patients)
         driver_set = list(set([driver for driver in self.patient_driver.values()]))
@@ -117,7 +116,7 @@ class Driver2Comm(object):
                 g = self.frequent_subgraphs[tested_FP_list[sorted_idx[i]]].to_graph(gid = tested_FP_list[sorted_idx[i]])
                 g.display(output2screen = True)
                 print("p values of FP {} : {}".format(tested_FP_list[sorted_idx[i]], p_value_list[sorted_idx[i]]))
-                graph_annotation = {'title':('Communication signature '+ str(i+1)),'P':p_value_list[sorted_idx[i]]}
+                graph_annotation = {'title':(f"{internal_factor}-associated CCC signature {i+1}" ),'P':p_value_list[sorted_idx[i]]}
                 g.plot(annotation = graph_annotation,save=save,path=os.path.join(self.outputPATH,internal_factor+'_associated_CCC_signature_'+str(i+1)+'.pdf'))
 
         return self
