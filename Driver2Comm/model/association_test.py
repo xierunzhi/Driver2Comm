@@ -55,6 +55,9 @@ class AssociationTest(object):
             # perform a multiTest correction
             pass_list,adjust_pvalue,_,_ = statsmodels.stats.multitest.multipletests(pvalue_list,alpha= self.threshold,method = 'fdr_bh')
             pass_idx = np.where(pass_list)
+            # adjust_pvalue = pvalue_list
+            # pass_list = [x <= self.threshold for x in adjust_pvalue]
+            # pass_idx = np.where(pass_list)
             self.external_combination = self.external.take(pass_idx[0])
             pvalue_list = np.take(adjust_pvalue,pass_idx[0])
             pvalue_sorted_idx = np.argsort(pvalue_list)
