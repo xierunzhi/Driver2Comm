@@ -12,12 +12,13 @@ import collections
 
 class Driver2Comm(object):
 
-    def __init__(self,c2c_network:dict,patient_metadata:pd.DataFrame,minsup,association_test_threshold = 0.05,outputPATH = './result',
+    def __init__(self,c2c_network:dict,patient_driver_info:pd.DataFrame,minsup,association_test_threshold = 0.05,outputPATH = './result',
                  cancer_type = 'Brca'):
         """
 
         :param c2c_network: the formulated cell-cell communication network data
-        :param patient_metadata: the metadata of patients, must contain: driver gene of each patient
+        :param patient_driver_info: the Driver information of patients, columns of this dataframe
+               looks like [Patient_id,Driver1,Driver2], the Driver information should be encode as a one-hot vector
         :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
         :param outputPATH: the path where output files place
         :param cancer_type: type of cancer
@@ -32,14 +33,14 @@ class Driver2Comm(object):
         self.patient_driver = dict()        # patient_driver[patient name] = patient driver
         self.frequent_subgraphs = None
         self.candidate_targets = None
-        self.drivers = dict()       #example: drivers[BRAF] = 0
+        #self.drivers = dict()       #example: drivers[BRAF] = 0
         self.association_test_ret = None
         self.cancer_type = cancer_type
         self.association_test_threshold = association_test_threshold
-        self.patient_metadata = patient_metadata
+        self.patient_driver_info = patient_driver_info
         if not os.path.exists(self.outputPATH):
             os.makedirs(self.outputPATH)
-        self.get_patient_info(patient_metadata)
+        self.get_patient_info(patient_driver_info)
 
 
     def get_patient_info(self,patient_metadata):
@@ -49,10 +50,10 @@ class Driver2Comm(object):
         :return:
         """
         assert 'Patient_id' in patient_metadata.columns, 'Please check again if the column name of patient id is correct!'
-        assert 'Driver' in patient_metadata.columns, 'Please check again if the column name of Driver is correct!'
+        # assert 'Driver' in patient_metadata.columns, 'Please check again if the column name of Driver is correct!'
         for i in range(patient_metadata.shape[0]):
             self.patient_info[i] = patient_metadata.loc[i,'Patient_id']
-            self.patient_driver[patient_metadata.loc[i,'Patient_id']] = patient_metadata.loc[i,'Driver']
+            # self.patient_driver[patient_metadata.loc[i,'Patient_id']] = patient_metadata.loc[i,'Driver']
         return self
 
     def run(self,visualize = False):
@@ -77,19 +78,9 @@ class Driver2Comm(object):
         return self
 
     def model_internal_factor(self):
-        patients = list(self.patient_metadata['Patient_id'])
-        #patients.sort()
-        n_patient = len(patients)
-        driver_set = list(set([driver for driver in self.patient_driver.values()]))
-        driver_set.sort()
-        for i in range(len(driver_set)):
-            self.drivers[driver_set[i]] = i
-        n_driver = len(driver_set)
-        internal_dataframe = np.zeros((n_driver, n_patient))
-        for patient_name, patient_driver in self.patient_driver.items():
-            internal_dataframe[driver_set.index(patient_driver), patients.index(patient_name)] = 1
-        # print(internal_dataframe)
-        self.internal_matrix = pd.DataFrame(internal_dataframe, index=driver_set, columns=patients)
+        internal_matrix = self.patient_driver_info.iloc[:,1:].T
+        internal_matrix.columns = self.patient_driver_info['Patient_id']
+        self.internal_matrix = internal_matrix
         return self
     def model_internal_and_external_factor(self,visualize= False):
 
@@ -248,3 +239,70 @@ class Driver2Comm(object):
         output_file.close()
         return self
 
+    def __load_lrp_human(self,):
+        return pd.read_csv(os.path.join( '../data', 'lrp_human.csv'))
+
+    def formulate_associated_ret(self,associated_file, lrp_human = None):
+        if lrp_human is None:
+            lrp_human = self.__load_lrp_human()
+        node1 = []
+        node2 = []
+        node1_type = []
+        node2_type = []
+        is_ct_edge = []
+        internal = []  # internal factor
+        rank = []
+        adjust_p = []
+        i = 0
+        while (i < len(associated_file)):
+            if associated_file[i].startswith('internal'):
+                internal_t = associated_file[i].split(' ')[2].rstrip()
+                rank_t = int(associated_file[i + 1].split(' ')[1].rstrip())
+                nodes_t = {}
+                i += 3
+                edge_num = 0
+                while not associated_file[i].startswith('adjust'):
+                    if associated_file[i].startswith('v'):
+                        line_split = associated_file[i].split(' ')
+                        nodes_t[line_split[1]] = line_split[2].rstrip()
+                    elif associated_file[i].startswith('e'):
+                        line_split = associated_file[i].split(' ')
+                        node1_i, node1_type_i = nodes_t[line_split[1]].split('__')
+                        node2_i, node2_type_i = nodes_t[line_split[2]].split('__')
+                        if node1_type_i != node2_type_i:
+                            if node1_i in lrp_human['ligand'].values:
+                                node1.append(node1_i)
+                                node1_type.append(node1_type_i)
+                                node2.append(node2_i)
+                                node2_type.append(node2_type_i)
+                            else:
+                                node1.append(node2_i)
+                                node1_type.append(node2_type_i)
+                                node2.append(node1_i)
+                                node2_type.append(node1_type_i)
+                        else:
+                            if node1_i < node2_i:
+                                node1.append(node1_i)
+                                node1_type.append(node1_type_i)
+                                node2.append(node2_i)
+                                node2_type.append(node2_type_i)
+                            else:
+                                node1.append(node2_i)
+                                node1_type.append(node2_type_i)
+                                node2.append(node1_i)
+                                node2_type.append(node1_type_i)
+                        if line_split[3].rstrip() == '1':
+                            is_ct_edge.append(True)
+                        else:
+                            is_ct_edge.append(False)
+                        rank.append(rank_t)
+                        internal.append(internal_t)
+                        edge_num += 1
+                    i += 1
+                adjust_p_t = float(associated_file[i].split(':')[1])
+                adjust_p += [adjust_p_t] * edge_num
+            i += 1
+        associated_mat = pd.DataFrame({'node1': node1, 'node2': node2, 'node1_type': node1_type,
+                                       'node2_type': node2_type, 'is_ct_edge': is_ct_edge,
+                                       'internal': internal, 'rank': rank, 'adjust_p': adjust_p}, )
+        return associated_mat
