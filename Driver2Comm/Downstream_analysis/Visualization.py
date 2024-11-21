@@ -11,11 +11,25 @@ import collections
 
 
 class Visualization(object):
-    def __init__(self, association_test_ret, frequent_subgraphs, patient_driver, subtype2gene):
-        self.association_test_ret = association_test_ret
+    def __init__(self, association_test_ret, frequent_subgraphs, patient_driver, subtype2gene = None):
+        """
+
+        :param association_test_ret: list of association test result, each element contaion:
+        - internal: driver / tumor subtype of interested
+        - idx of passed FP: index of significant frequent pattern/subgraph
+        - internal vec : one hot encode vector of patient driver
+        - pvalue of passed FP : pvalue of significant frequent pattern/subgraph
+        :param frequent_subgraphs:
+        :param patient_driver:
+        :param subtype2gene:
+        """
+        self.association_test_ret = association_test_ret #
         self.frequent_subgraphs = frequent_subgraphs
         self.patient_driver = patient_driver
-        self.subtype2gene = subtype2gene
+        self.subtype2gene = subtype2gene # TO BE DELETE IN THE FUTURE
+        self.pcsf_network = None
+        self.original_network = None
+
 
     def read_graph_from_cytotalk_output(self, patientpath):
         """
@@ -32,8 +46,8 @@ class Visualization(object):
         for celltype in celltype_list:
             pcsf_matrix = pd.read_table(os.path.join(patientpath, celltype, 'FinalNetwork.txt'))
             for i in range(pcsf_matrix.shape[0]):
-                node1 = pcsf_matrix.loc[i, 'node1'] + '__' + pcsf_matrix.loc[i, 'node1_type']
-                node2 = pcsf_matrix.loc[i, 'node2'] + '__' + pcsf_matrix.loc[i, 'node2_type']
+                node1 = pcsf_matrix.loc[i, 'node1'].upper() + '__' + pcsf_matrix.loc[i, 'node1_type']
+                node2 = pcsf_matrix.loc[i, 'node2'].upper() + '__' + pcsf_matrix.loc[i, 'node2_type']
                 if not pcsf_network.vertices.__contains__(node1):
                     pcsf_network.add_vertex(node1)
                 if not pcsf_network.vertices.__contains__(node2):
@@ -45,6 +59,11 @@ class Visualization(object):
             for i in range(original_matrix.shape[0]):
                 node1 = original_matrix.loc[i, 'node1']
                 node2 = original_matrix.loc[i, 'node2']
+                gene1, celltype1 = node1.split('__')
+                gene2, celltype2 = node2.split('__')
+                # update annotation
+                node1 = gene1.upper() + '__' + celltype1
+                node2 = gene2.upper() + '__' + celltype2
                 if not original_network.vertices.__contains__(node1):
                     original_network.add_vertex(node1)
                 if not original_network.vertices.__contains__(node2):
@@ -54,8 +73,52 @@ class Visualization(object):
         # construct an edge priority
         pcsf_network.sort_edges()
         original_network.sort_edges()
-        return pcsf_network, original_network
-
+        self.pcsf_network = pcsf_network
+        self.original_network = original_network
+        return self
+    def __read_graph_from_cytotalk_output(self, patientpath):
+        """
+        read communication networks from cytotalk outputs with edge cost
+        :param self:
+        :param patientpath: PATH that store cytotalk 's output .
+        This directory should contain subdirectory named celltypeA-cellTypeB
+        :return:
+        """
+        original_network = c2c_network()
+        pcsf_network = c2c_network()
+        # read the final network
+        celltype_list = os.listdir(patientpath)
+        for celltype in celltype_list:
+            pcsf_matrix = pd.read_table(os.path.join(patientpath, celltype, 'FinalNetwork.txt'))
+            for i in range(pcsf_matrix.shape[0]):
+                node1 = pcsf_matrix.loc[i, 'node1'].upper() + '__' + pcsf_matrix.loc[i, 'node1_type']
+                node2 = pcsf_matrix.loc[i, 'node2'].upper() + '__' + pcsf_matrix.loc[i, 'node2_type']
+                if not pcsf_network.vertices.__contains__(node1):
+                    pcsf_network.add_vertex(node1)
+                if not pcsf_network.vertices.__contains__(node2):
+                    pcsf_network.add_vertex(node2)
+                pcsf_network.add_edge(VACANT_EDGE_ID, node1, node2, int(pcsf_matrix.loc[i, 'is_ct_edge']),
+                                      pcsf_matrix.loc[i, 'cost'])
+        for celltype in celltype_list:
+            original_matrix = pd.read_table(os.path.join(patientpath, celltype, 'IntegratedEdges.txt'))
+            for i in range(original_matrix.shape[0]):
+                node1 = original_matrix.loc[i, 'node1']
+                node2 = original_matrix.loc[i, 'node2']
+                gene1, celltype1 = node1.split('__')
+                gene2, celltype2 = node2.split('__')
+                # update annotation
+                node1 = gene1.upper() + '__' + celltype1
+                node2 = gene2.upper() + '__' + celltype2
+                if not original_network.vertices.__contains__(node1):
+                    original_network.add_vertex(node1)
+                if not original_network.vertices.__contains__(node2):
+                    original_network.add_vertex(node2)
+                original_network.add_edge(VACANT_EDGE_ID, node1, node2, int(self.inequal_celltype(node1, node2)),
+                                          original_matrix.loc[i, 'cost'])
+        # construct an edge priority
+        pcsf_network.sort_edges()
+        original_network.sort_edges()
+        return pcsf_network,original_network
     def inequal_celltype(self, node1, node2, celltypelist=['Cd8+Tcells', 'Macrophages', 'Tumor']):
         for i in range(len(celltypelist)):
             if celltypelist[i] in node1:
@@ -63,33 +126,42 @@ class Visualization(object):
                     return False
         return True
 
-    def visualize_internal2external(self, patient_path, internal_gene, external_gene):
-        pcsf_network, original_network = self.read_graph_from_cytotalk_output_v4(patient_path)
-        return self.get_in2ex_pathway(internal_gene, external_gene, pcsf_network, original_network)
+    def get_ie_pathway(self, internal_gene, external_gene):
+        pcsf_network = self.pcsf_network
+        original_network = self.original_network
+        return self.__get_ie_pathway(internal_gene, external_gene, pcsf_network, original_network)
 
-    def get_in2ex_pathway(self, internal_gene, external_gene, pcsf_network, original_network):
+    def __get_ie_pathway(self, internal_gene, external_gene, pcsf_network, original_network):
+        """
+        identify shortest pathway between internal_gene and external_gene in extend_network
+        :param internal_gene:
+        :param external_gene:
+        :param pcsf_network:
+        :param original_network:
+        :return:
+        """
         if internal_gene not in original_network.set_of_vlb or external_gene not in pcsf_network.set_of_vlb:
             return pd.DataFrame()
         internal_network = c2c_network()
         internal_network.add_vertex(internal_gene)
         if (internal_gene in pcsf_network.set_of_vlb):
-            internal_network = self.combine_network(internal_network, pcsf_network)
+            internal_network = self.__combine_network(internal_network, pcsf_network)
         else:
             original_network.sort_edges()
-            internal_network = self.extend_network(pcsf_network.set_of_vlb, internal_network, original_network)
-            internal_network = self.combine_network(internal_network, pcsf_network)
+            internal_network = self.__extend_network(pcsf_network.set_of_vlb, internal_network, original_network)
+            internal_network = self.__combine_network(internal_network, pcsf_network)
         external_network = c2c_network()
         if (external_gene in pcsf_network.set_of_vlb):
-            external_network = self.combine_network(internal_network, external_network)
+            external_network = self.__combine_network(internal_network, external_network)
         else:
             external_network.add_vertex(external_gene)
             original_network.sort_edges()
-            external_network = self.extend_network(pcsf_network.set_of_vlb, external_network, original_network)
-        combined_network = self.combine_network(internal_network, external_network)
-        ret = self.identify_shortest_path_from_internal_to_external(internal_gene, external_gene, combined_network)
+            external_network = self.__extend_network(pcsf_network.set_of_vlb, external_network, original_network)
+        combined_network = self.__combine_network(internal_network, external_network)
+        ret = self.__identify_ie_pathway_util(internal_gene, external_gene, combined_network)
         return ret
 
-    def extend_network(self, geneset, internal_network, original_network):
+    def __extend_network(self, geneset, internal_network, original_network):
         while len(geneset & internal_network.set_of_vlb) < 1:
             internal_geneset = internal_network.set_of_vlb.copy()
             for node1 in internal_geneset:
@@ -104,7 +176,7 @@ class Visualization(object):
         # once jump out of circle, we find the intersect part between internal and external
         return internal_network
 
-    def combine_network(self, internal_network: c2c_network, external_network):
+    def __combine_network(self, internal_network: c2c_network, external_network):
         # combined the internal network and external network to internal network
         combined_network = internal_network
         for label, vertex in external_network.vertices.items():
@@ -116,9 +188,9 @@ class Visualization(object):
                 combined_network.add_edge(VACANT_EDGE_ID, label, label2, edge.edge_type, edge.edge_cost)
         return combined_network
 
-    def identify_shortest_path_from_internal_to_external(self, internal_gene, exteranl_gene, combination_network):
+    def __identify_ie_pathway_util(self, internal_gene, exteranl_gene, combination_network):
         '''
-        identify the shorest path from internal gene to external gene
+        utils:identify the shorest path from internal gene to external gene
         :param internal_gene:
         :param exteranl_gene:
         :param combination_network:
@@ -155,11 +227,11 @@ class Visualization(object):
                             distance[node3] = cost + distance[node2]
                             prior_vertex[node3] = node2
                         closest_vertex_queue.put((distance[node3], (node2, node3)))
-        shortest_path_matrix = self.get_shortest_path(internal_gene, exteranl_gene, prior_vertex,
+        shortest_path_matrix = self.__get_shortest_path(internal_gene, exteranl_gene, prior_vertex,
                                                       combination_network)
         return shortest_path_matrix
 
-    def get_shortest_path(self, internal_gene, exteranl_gene, prior_vertex: dict, combination_network):
+    def __get_shortest_path(self, internal_gene, exteranl_gene, prior_vertex: dict, combination_network):
         shortest_path = collections.defaultdict(list)
         node1 = prior_vertex[exteranl_gene]
         node2 = exteranl_gene
@@ -184,7 +256,8 @@ class Visualization(object):
         print(patient_path)
         tested_FP_list = association_test_ret['idx of passed FP']
         shortest_path_network = pd.DataFrame()
-        pcsf_network, original_network = self.read_graph_from_cytotalk_output_v4(patient_path)
+        pcsf_network = self.pcsf_network
+        original_network = self.original_network
         for i in range(k):
             g = self.frequent_subgraphs[tested_FP_list[i]].to_graph(
                 gid=tested_FP_list[i])
@@ -194,7 +267,7 @@ class Visualization(object):
                 if shortest_path_matrix.shape[0] > 0:
                     print('{} th frequent pattern'.format(i + 1))
                 shortest_path_network = pd.concat((shortest_path_network, shortest_path_matrix), axis=0)
-        frequent_subgraph_matrix = self.get_frequent_subgraph_matrix(k)
+        frequent_subgraph_matrix = self.__get_frequent_subgraph_matrix(k)
         shortest_path_network = pd.concat((frequent_subgraph_matrix,shortest_path_network),axis=0)
         shortest_path_network = shortest_path_network.reset_index(drop=True)
         return shortest_path_network
@@ -243,7 +316,7 @@ class Visualization(object):
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             patient_path = os.path.join(patients_path, patient)
-            pcsf_network, original_network = self.read_graph_from_cytotalk_output_v4(patient_path)
+            pcsf_network, original_network = self.__read_graph_from_cytotalk_output(patient_path)
             for i in range(k):
                 if(external_matrix.loc[patient,tested_FP_list[i]]==0):
                     continue
@@ -286,7 +359,12 @@ class Visualization(object):
             # patient_shortest_network.to_csv(output_dir+'/shortest_paths.txt',sep='\t',index = False)
         return
 
-    def get_frequent_subgraph_matrix(self,k):
+    def __get_frequent_subgraph_matrix(self,k):
+        """
+
+        :param k:
+        :return:
+        """
         set_of_edge = set()
         fp_info = collections.defaultdict(list)
         for i in range(k):
@@ -448,7 +526,7 @@ class Visualization(object):
 
     def get_node_occurence(self, network_matrix):
         """
-        get node's occurence in a frequent pattern from different pesudo-patients
+        get node's occurence in a frequent pattern from different pseudo-patients
         :param network_matrix:
         :return:
         """
@@ -468,7 +546,7 @@ class Visualization(object):
 
     def combine_FP_pathway(self, k, patients_path, association_test_ret, output_dir='./result'):
         """
-        combine all the frequent pathways from each pesudo-patient to form a large FP
+        combine all the frequent pathways from each pseudo-patient to form a large FP
         :param k:
         :param patients_path:
         :param association_test_ret:
@@ -494,7 +572,24 @@ class Visualization(object):
 
 
 
-    def find_represent_patient(self,k):
-        patient_list = list(self.association_test_ret['external matrix'].index)
-        return patient_list[np.argmax(np.sum(self.association_test_ret['external matrix'].iloc[:, 0:k], axis=1))]
+    def find_represent_patient(self,k,driver):
+        """
+        select the patients with the most top k frequent subgraph as represent
+        :param k: top k frequent subgraph
+        :return:
+        """
+        flag = False
+        for i in range(len(self.association_test_ret)):
+                if driver == self.association_test_ret[i]['internal']:
+                    association_test_ret_driver = self.association_test_ret[i]
+                    flag = True
+                    break
+        assert flag == True , "association test not contation input driver/tumor subtype,please check again!"
+
+        internal_vec = association_test_ret_driver['internal vec']
+        patient_list = list(internal_vec[internal_vec==1].index)
+        association_test_ret_driver_ext_mat = association_test_ret_driver['external matrix'].loc[patient_list,]
+        if k > association_test_ret_driver_ext_mat.shape[1]:
+            k = association_test_ret_driver_ext_mat.shape[1]
+        return patient_list[np.argmax(np.sum(association_test_ret_driver_ext_mat.iloc[:, 0:k], axis=1))]
 
