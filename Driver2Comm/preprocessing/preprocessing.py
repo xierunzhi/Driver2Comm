@@ -48,7 +48,6 @@ def read_c2c_network(inputPATH):
         :return:
         """
         c2c_network = dict()
-        #inputPATH = os.path.join(inputPATH,'c2c_network.data')
         with codecs.open(inputPATH, 'r', 'utf-8') as f:
             lines = [line.strip() for line in f.readlines()]
             tgraph, graph_cnt = None, 0

@@ -63,7 +63,6 @@ R :  tested with R 4.0.3
 * For detail information of Cytotalk installation, please refer to [tanlabcode/Cytotalk](https://github.com/tanlabcode/CytoTalk)  
 
 
-
 ## Tutorial
 
 ### Preparation
@@ -74,14 +73,14 @@ the input of Driver2Comm include two part:
 2. Extrinsic factors: the MCTC networks of patients in this study 
 
 #### Intrinsic factor
-Driver2Comm needs patient driver information as input
+Driver2Comm needs patient driver information as input，where column1 is patients' id, the remaining columns are driver involving in your study. 1 means the driver variated in this patient. 0 means not.
 
-|      | Patient_id | Driver |
-| ---- | ---------- | ------ |
-| 0    |       patient1     |    ESR1    |
-| 1    |       patient2       |   ESR1     |
-| 2    |       patient3       |   ERBB2     |
-| 3    |       patient4      |    ERBB2    |
+|      | Patient_id | Driver1 | Driver2 |
+| ---- | ---------- | ------ | ------ |
+| 0    |      patient1     | 1       |    0    |
+| 1    |       patient2       |   0    |   0    |
+| 2    |       patient3       |   1   |   0    |
+| 3    |      patient41      | 1       |    1    |
 
 
 #### Extrinsic factor
@@ -116,7 +115,6 @@ inputPATH = './data/CytoTalk_output'
 outputPATH = './data/Driver2Comm_input'
 patient_list = ['patient1','patient2',...,'patientn']
 formulate_c2c_network(inputPATH,outputPATH,patient_list)
- 
 ```
 
 **Warning !!!**
@@ -138,10 +136,10 @@ v 1 CD52__Cd8+Tcells
 e 0 1 0
 t # -1			# t # -1 represent as the end of this file
 ```
-
-
-
-
+**2. the label of celltype should not contain any space**
+for example:
+"CD8+ T" **×** 
+"CD8+_T" **✓**
 ### Usage
 
 You can apply Driver2Comm in the following step.
@@ -166,16 +164,18 @@ import Driver2Comm as dc
 c2c_network = dc.read_c2c_network(os.path.join('./data/c2c_network.data'))
 model = dc.Driver2Comm(
 					c2c_network = c2c_network,
-                    patient_metadata=patient_metadata,
+                    patient_driver_info=patient_driver_info,
                     minsup= 20,
+                    association_test_threshold=0.05,
                     outputPATH= './data/Driver2Comm_output',
                     cancer_type='Brca'
     """
     parameters:
     __________________
         :param c2c_network: the formulated cell-cell communication network data
-        :param patient_metadata: the metadata of patients, must contain: driver gene of each patient
-        :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
+        :param patient_driver_info: the patient metadata formulated as the form shown in previous section "intrinsic factor"
+        :param minsup: Hyperparameter, the minimal suppport of frequent subnetwork extraction algorithm
+        :param association_test_threshold: Hyperparameter, the threshold of association testing
         :param outputPATH: the path where output files place
         :param cancer_type: type of cancer
     __________________
@@ -191,8 +191,32 @@ model.run()
 We offer several ways to visualize and evaluate the cancer driver associated CCC signatures identified by Driver2Comm.
 
 ```python
-model.display_associated_FP()
 # display all cancer driver associated CCC signatures on screen.
+model.display_associated_FP()
+# output association testing result of Driver2Comm as a Pandas Dataframe
+associated_mat = model.output_assocaited_mat()
+
+```
+### Downstream evaluation
+
+#### Intrinsic-Extrinsic (IE) pathway identification
+we provide two function to get IE pathway
+##### to get the IE pathway of top k driver-associated CCC signature
+```python
+import Driver2Comm as dc
+interested_driver = 'ESR1__Tumor' # your interested driver
+patient_path = './xxx' # the path containing cytotalk result of interested patient
+k = 10 # number of interested signatures
+top_k_ie_pathway_mat = dc.generate_top_k_ie_pathway(model.association_test_ret,model.frequent_subgraphs,interested_driver, k=k,patient_path=patient_path)
+```
+##### to get the IE pathway of specific interested gene in CCC signature
+```python
+import Driver2Comm as dc
+interested_driver = 'ESR1__Tumor' # your interested driver
+patient_path = './xxx' # the path containing cytotalk result of interested patient
+interested_gene = 'APOE_Macrophages' # your interested gene
+pcsf_network, original_network = dc.read_graph_from_cytotalk_output(patient_path)
+ie_ret = dc.get_ie_pathway(interested_driver,interested_gene,pcsf_network,original_network)
 ```
 
 ## Maintainer

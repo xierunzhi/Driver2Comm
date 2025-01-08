@@ -11,7 +11,7 @@ import collections
 
 
 class Visualization(object):
-    def __init__(self, association_test_ret, frequent_subgraphs, patient_driver, subtype2gene = None):
+    def __init__(self, association_test_ret, frequent_subgraphs):
         """
 
         :param association_test_ret: list of association test result, each element contaion:
@@ -20,13 +20,10 @@ class Visualization(object):
         - internal vec : one hot encode vector of patient driver
         - pvalue of passed FP : pvalue of significant frequent pattern/subgraph
         :param frequent_subgraphs:
-        :param patient_driver:
-        :param subtype2gene:
         """
         self.association_test_ret = association_test_ret #
         self.frequent_subgraphs = frequent_subgraphs
-        self.patient_driver = patient_driver
-        self.subtype2gene = subtype2gene # TO BE DELETE IN THE FUTURE
+        #self.patient_driver = patient_driver
         self.pcsf_network = None
         self.original_network = None
 
@@ -35,7 +32,7 @@ class Visualization(object):
         """
         read communication networks from cytotalk outputs with edge cost
         :param self:
-        :param patientpath: PATH that store cytotalk 's output .
+        :param patientpath: PATH that store cytotalk's output .
         This directory should contain subdirectory named celltypeA-cellTypeB
         :return:
         """
@@ -231,16 +228,20 @@ class Visualization(object):
                                                       combination_network)
         return shortest_path_matrix
 
-    def __get_shortest_path(self, internal_gene, exteranl_gene, prior_vertex: dict, combination_network):
+    def __get_shortest_path(self, internal_gene, exteranl_node, prior_vertex: dict, combination_network):
         shortest_path = collections.defaultdict(list)
-        node1 = prior_vertex[exteranl_gene]
-        node2 = exteranl_gene
+        node1 = prior_vertex[exteranl_node]
+        node2 = exteranl_node
         while node2 != internal_gene:
-            shortest_path['node1'].append(node1)
-            shortest_path['node2'].append(node2)
+            gene1,ct1 = node1.split('__')
+            gene2, ct2 = node2.split('__')
+            shortest_path['node1'].append(gene1)
+            shortest_path['node2'].append(gene2)
+            shortest_path['node1_type'].append(ct1)
+            shortest_path['node2_type'].append(ct2)
             shortest_path['is_ct_edge'].append(bool(combination_network.vertices[node1].edges[node2].edge_type))
             shortest_path['cost'].append(combination_network.vertices[node1].edges[node2].edge_cost)
-            if (node2 == exteranl_gene):
+            if (node2 == exteranl_node):
                 shortest_path['edge_role'].append('end')
             elif (node1 == internal_gene):
                 shortest_path['edge_role'].append('start')
@@ -252,22 +253,38 @@ class Visualization(object):
         shortest_path_matrix = shortest_path_matrix.reindex(index=shortest_path_matrix.index[::-1])
         return shortest_path_matrix
 
-    def generate_top_k_in2outpathway(self, internal_gene, k, patient_path, association_test_ret):
+    def generate_top_k_ie_pathway(self, internal_node, k, patient_path):
+        """
+
+        :param internal_gene:
+        :param k:
+        :param patient_path:
+        :param association_test_ret:
+        :return:
+        """
         print(patient_path)
+        driver,ct = internal_node.split('__')
+        for i in range(len(self.association_test_ret)):
+            if self.association_test_ret[i]['internal'] == driver:
+                association_test_ret = self.association_test_ret[i]
+                break
+
         tested_FP_list = association_test_ret['idx of passed FP']
         shortest_path_network = pd.DataFrame()
         pcsf_network = self.pcsf_network
         original_network = self.original_network
         for i in range(k):
+            if i == 9:
+                print(1)
             g = self.frequent_subgraphs[tested_FP_list[i]].to_graph(
                 gid=tested_FP_list[i])
             for vid, vertex in g.vertices.items():
-                shortest_path_matrix = self.get_in2ex_pathway(internal_gene, vertex.vlb, pcsf_network,
+                shortest_path_matrix = self.__get_ie_pathway(internal_node, vertex.vlb, pcsf_network,
                                                               original_network)
                 if shortest_path_matrix.shape[0] > 0:
-                    print('{} th frequent pattern'.format(i + 1))
+                    print(f'identifying pathway to {vertex.vlb} in {driver}-associated CCC signature {i + 1} ')
                 shortest_path_network = pd.concat((shortest_path_network, shortest_path_matrix), axis=0)
-        frequent_subgraph_matrix = self.__get_frequent_subgraph_matrix(k)
+        frequent_subgraph_matrix = self.__get_frequent_subgraph_matrix(k,association_test_ret)
         shortest_path_network = pd.concat((frequent_subgraph_matrix,shortest_path_network),axis=0)
         shortest_path_network = shortest_path_network.reset_index(drop=True)
         return shortest_path_network
@@ -282,29 +299,28 @@ class Visualization(object):
         """
         shortest_path_network = pd.DataFrame()
         for vid, vertex in frequent_graph.vertices.items():
-            shortest_path_matrix = self.get_in2ex_pathway(internal_gene, vertex.vlb, pcsf_network, original_network)
+            shortest_path_matrix = self.__get_ie_pathway(internal_gene, vertex.vlb, pcsf_network, original_network)
             shortest_path_network = pd.concat((shortest_path_network, shortest_path_matrix), axis=0)
         shortest_path_network = shortest_path_network.reset_index(drop=True)
         return shortest_path_network
 
-    def generate_top_k_pathway_separated(self, genome_factor, k, patients_path, outputdir='./result'):
+    def generate_top_k_pathway_separated(self, internal_gene,tumor_cell_annotation, k, patients_path, outputdir='./result'):
         """
-        generate top k pathway of sample eparately with same genome factor in order to see if they have a strong overlap
-        :param genome_factor:
+        generate top k IE pathway separately for all patient with this driver
+        :param :internal_gene query driver gene
         :param k:
         :param patients_path:
         :param outputdir:
         :return:
         """
         patient_list = []
-        internal_gene = self.subtype2gene[genome_factor]  # get internal gene list
-        internal_gene = internal_gene[0] + '__Tumor'
+        internal_node = internal_gene + '__' + tumor_cell_annotation
         internal_idx = 0
         for name, driver in self.patient_driver.items():
-            if (driver == genome_factor):
+            if (driver == internal_gene):
                 patient_list.append(name)
         for i in range(len(self.association_test_ret)):
-            if self.association_test_ret[i]['internal'] == genome_factor:
+            if self.association_test_ret[i]['internal'] == internal_gene:
                 internal_idx = i  # get the association test result corresponding to genome factor
                 break
         association_test_ret = self.association_test_ret[internal_idx]
@@ -312,7 +328,7 @@ class Visualization(object):
         external_matrix = association_test_ret['external matrix']
         for patient in patient_list:
             print(patient)
-            output_dir = os.path.join(outputdir, genome_factor, patient)
+            output_dir = os.path.join(outputdir, internal_gene, patient)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             patient_path = os.path.join(patients_path, patient)
@@ -322,7 +338,7 @@ class Visualization(object):
                     continue
                 g = self.frequent_subgraphs[tested_FP_list[i]].to_graph(
                     gid=tested_FP_list[i])
-                patient_shortest_network = self.generate_pathway_of_a_FP(internal_gene, g, pcsf_network,
+                patient_shortest_network = self.generate_pathway_of_a_FP(internal_node, g, pcsf_network,
                                                                          original_network)
                 if (patient_shortest_network.shape[0] > 0):
                     print('{} th frequent pattern'.format(tested_FP_list[i]))
@@ -330,7 +346,7 @@ class Visualization(object):
                                                          output_dir)
         return
 
-    def generate_top_k_pathway_of_sample_with_same_genome_factor(self, genome_factor, k, patients_path,
+    def generate_top_k_pathway_of_sample_with_same_genome_factor(self, internal_gene,tumor_cell_annotation, k, patients_path,
                                                                  outputdir='./result'):
         '''
         generate top k pathway of sample with same genome factor in order to see if they have a strong overlap
@@ -340,35 +356,34 @@ class Visualization(object):
         :return:
         '''
         patient_list = []
-        internal_gene = self.subtype2gene[genome_factor]  # get internal gene list
-        internal_gene = internal_gene[0] + '__Tumor'
+        internal_node = internal_gene[0] + '__'+ tumor_cell_annotation
         for name, driver in self.patient_driver.items():
-            if (driver == genome_factor):
+            if (driver == internal_gene):
                 patient_list.append(name)
 
 
         for patient in patient_list:
-            output_dir = os.path.join(outputdir, genome_factor, patient)
+            output_dir = os.path.join(outputdir, internal_gene, patient)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             patient_path = os.path.join(patients_path, patient)
-            patient_shortest_network = self.generate_top_k_in2outpathway(internal_gene, k, patient_path,
-                                                                         self.association_test_ret)
+            patient_shortest_network = self.generate_top_k_ie_pathway(internal_node, k, patient_path)
             self.output_shortest_network_info(patient_shortest_network, output_dir)
             # self.output_network_sif(patient_shortest_network,output_dir+'/shortest_paths.sif')
             # patient_shortest_network.to_csv(output_dir+'/shortest_paths.txt',sep='\t',index = False)
         return
 
-    def __get_frequent_subgraph_matrix(self,k):
+    def __get_frequent_subgraph_matrix(self, k,association_test_ret):
         """
-
+        generate edge for frequent subgraph as a dataframe format and then concat to the shortest path
         :param k:
+        :param association_test_ret:  assoicated result of interested Driver
         :return:
         """
         set_of_edge = set()
         fp_info = collections.defaultdict(list)
         for i in range(k):
-            fpid = self.association_test_ret['idx of passed FP'][i]
+            fpid = association_test_ret['idx of passed FP'][i]
             g = self.frequent_subgraphs[fpid].to_graph(gid = fpid)
             for vid,vertex in g.vertices.items():
                 for toid in vertex.edges.keys():
@@ -377,8 +392,12 @@ class Visualization(object):
                     if (node1,node2) not in set_of_edge:
                         set_of_edge.add((node1,node2))
                         set_of_edge.add((node2,node1))
-                        fp_info['node1'].append(node1)
-                        fp_info['node2'].append(node2)
+                        gene1, ct1 = node1.split('__')
+                        gene2, ct2 = node2.split('__')
+                        fp_info['node1'].append(gene1)
+                        fp_info['node2'].append(gene2)
+                        fp_info['node1_type'].append(ct1)
+                        fp_info['node2_type'].append(ct2)
                         fp_info['is_ct_edge'].append(self.inequal_celltype(node1,node2))
                         fp_info['cost'].append(VACANT_EDGE_COST)
                         fp_info['edge_role'].append('frequent pathway')
@@ -591,5 +610,6 @@ class Visualization(object):
         association_test_ret_driver_ext_mat = association_test_ret_driver['external matrix'].loc[patient_list,]
         if k > association_test_ret_driver_ext_mat.shape[1]:
             k = association_test_ret_driver_ext_mat.shape[1]
+        print(np.sum(association_test_ret_driver_ext_mat.iloc[:, 0:k], axis=1))
         return patient_list[np.argmax(np.sum(association_test_ret_driver_ext_mat.iloc[:, 0:k], axis=1))]
 

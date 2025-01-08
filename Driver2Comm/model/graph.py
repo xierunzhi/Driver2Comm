@@ -135,7 +135,7 @@ class Graph(object):
                     display_str += 'e {} {} {}\n'.format(frm, to, edges[to].elb)
         return display_str
 
-    def plot(self,annotation = None,save = False,path = './plot.pdf'):
+    def plot(self,ct_color_mat,annotation = None,save = False,path = './plot.pdf',):
         """Visualize the graph."""
         try:
             import networkx as nx
@@ -144,7 +144,7 @@ class Graph(object):
             print('Can not plot graph: {}'.format(e))
             return
         # the first version only support Macrophage CTL and TC
-        edgetypes = collections.defaultdict(list)
+        #edgetypes = collections.defaultdict(list)
         gnx = nx.Graph()
         vlbs = {}
 
@@ -153,12 +153,13 @@ class Graph(object):
         for vid, v in self.vertices.items():
             gene, CT = v.vlb.split('__')
             vlbs[vid] = gene
-            if CT == 'Macrophage':
-                colors_list.append('#9ecae1')
-            elif CT == 'CD8+T_cell' or CT == 'CD8+ T':
-                colors_list.append('#a1d99b')
-            else:
-                colors_list.append('#fb6a4a')
+            colors_list.append(ct_color_mat[CT])
+            # if CT == 'Macrophage':
+            #     colors_list.append('#9ecae1')
+            # elif CT == 'CD8+T_cell' or CT == 'CD8+ T':
+            #     colors_list.append('#a1d99b')
+            # else:
+            #     colors_list.append('#fb6a4a')
         elbs = {}
         for vid, v in self.vertices.items():
             gene, CT = v.vlb.split('__')

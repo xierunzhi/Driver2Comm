@@ -20,6 +20,7 @@ class Driver2Comm(object):
         :param patient_driver_info: the Driver information of patients, columns of this dataframe
                looks like [Patient_id,Driver1,Driver2], the Driver information should be encode as a one-hot vector
         :param minsup: Hyperparameter, the minimal suppport of gSpan algorithm
+        :param association_test_threshold : Hyperparameter, the p value threshold of association testing
         :param outputPATH: the path where output files place
         :param cancer_type: type of cancer
         """
@@ -41,6 +42,8 @@ class Driver2Comm(object):
         if not os.path.exists(self.outputPATH):
             os.makedirs(self.outputPATH)
         self.get_patient_info(patient_driver_info)
+        self.association_test_ret_mat = None
+        self.ct_color_mat = {}
 
 
     def get_patient_info(self,patient_metadata):
@@ -66,6 +69,7 @@ class Driver2Comm(object):
         print('Start Associating testing!')
         self.association_test(threshold = self.association_test_threshold)
         print('Finishing Associating testing!')
+        self.association_test_ret_mat = self._formulated_associated_FP_mat()
         return self
 
     def model_external_factors(self,visualize = False):
@@ -86,7 +90,6 @@ class Driver2Comm(object):
 
         self.model_external_factors(visualize)
         self.model_internal_factor()
-        #ret = pd.concat([self.external_matrix,self.internal_matrix],axis=0)
         self.output_internal_and_external_matrix()
         return self
 
@@ -95,6 +98,12 @@ class Driver2Comm(object):
         self.association_test_ret = a.association_test()
         return self
     def display_associated_FP(self,save = False):
+        """
+
+        :param save:
+        :return:
+        """
+        self._get_ct_color_map()
         for i in range(len(self.association_test_ret)):
             association_test_ret = self.association_test_ret[i]
             internal_factor = association_test_ret['internal']
@@ -108,7 +117,7 @@ class Driver2Comm(object):
                 g.display(output2screen = True)
                 print("p values of FP {} : {}".format(tested_FP_list[sorted_idx[i]], p_value_list[sorted_idx[i]]))
                 graph_annotation = {'title':(f"{internal_factor}-associated CCC signature {i+1}" ),'P':p_value_list[sorted_idx[i]]}
-                g.plot(annotation = graph_annotation,save=save,path=os.path.join(self.outputPATH,internal_factor+'_associated_CCC_signature_'+str(i+1)+'.pdf'))
+                g.plot(ct_color_mat=self.ct_color_mat,annotation = graph_annotation,save=save,path=os.path.join(self.outputPATH,internal_factor+'_associated_CCC_signature_'+str(i+1)+'.pdf'))
 
         return self
     def output_internal_and_external_matrix(self):
@@ -117,22 +126,6 @@ class Driver2Comm(object):
         internal_name = self.cancer_type+'Internal.csv'
         self.internal_matrix.to_csv(os.path.join(self.outputPATH,internal_name))
         return None
-    def output_Frequent_subgraph(self,outputPATH = None):
-        if outputPATH is None:
-            outputPATH = self.outputPATH
-        try:
-            import codecs
-        except Exception as e:
-            print('Can not output result: {}'.format(e))
-            return
-        if not os.path.isdir(outputPATH):
-            os.makedirs(outputPATH)
-        output_file = codecs.open(os.path.join(outputPATH,'Frequent_Pattern_'+str(self.minsup)+'.txt'),'w','utf-8')
-        for gid in range(len(self.frequent_subgraphs)):
-            g = self.frequent_subgraphs[gid].to_graph(gid)
-            output_file.write(g.display(output2screen=False))
-        output_file.close()
-        return self
 
     def output_association_FP(self,outputPATH = None):
         if outputPATH is None:
@@ -159,92 +152,19 @@ class Driver2Comm(object):
                 output_file.write("adjust p values of FP {} : {}\n".format(tested_FP_list[sorted_idx[i]], p_value_list[sorted_idx[i]]))
         output_file.close()
         return self
-
-    def identify_co_occurrence_Fp(self,association_test_ret:dict):
-        internal_vec = association_test_ret['internal vec']
-        external_matrix = association_test_ret['external matrix']
-        tested_FP_list = association_test_ret['idx of passed FP']
-        co_occur_list = []
-        for i in range(external_matrix.shape[0]):
-            #external_vec = external_matrix.loc[:,tested_FP_list[i]]
-            co_occur_cnt = sum((external_matrix.loc[:,tested_FP_list[i]] + internal_vec) == 2)
-            sup = sum(external_matrix.loc[:,tested_FP_list[i]])
-            if(co_occur_cnt*1.0/sup)>=0.5:
-                co_occur_list.append(i)
-        return co_occur_list
-
-    def get_candidate_target(self,g,internal):
-        return self.get_candidate_target_driver(g,internal)
-
-    def filter_celltype(self,node:str):
-        gene,celltype = node.split('__')
-        return gene
-
-    def get_candidate_target_driver(self,g,internal_gene):
-        candidate_targets = list()
-        for vid in g.vertices:
-            candidate_targets.append((internal_gene, self.filter_celltype(g.vertices[vid].vlb)))
-        return candidate_targets
-
-
-    def generate_combination_targets_of_an_internal_factor(self,frequent_pattern,gid_list,internal):
+    def _formulated_associated_FP_mat(self,outputPATH = None, lrp_human = None):
         """
-        generate all the combination targets of a subtype or an internal gene
-        :param frequent_pattern: the DFScode of all the frequent subgraphs
-        :param gid_list: list of tested Frequetn subgraph id
-        :param internal: the internal factor of combination therapy : can be a subtype or a driver
+
+        :param outputPATH:
+        :param lrp_human: ligand receptor annotation used to sorted edge
         :return:
         """
-        candidate_targets = list()
-        candidate_targets_dict = dict()
-        for i in gid_list:
-            g = frequent_pattern[i].to_graph(gid=i)
-            candidate_targets_g = self.get_candidate_target(g,internal)
-            for candidate_target in candidate_targets_g:
-                if not candidate_targets_dict.__contains__(candidate_target):
-                    candidate_targets_dict[candidate_target] = 1
-                    candidate_targets.append(candidate_target)
-        return candidate_targets
-
-    def generate_combination_targets(self):
-        candidate_targets = collections.defaultdict(list)
-        for i in range(len(self.association_test_ret)):
-            association_test_ret = self.association_test_ret[i]
-            internal_factor = association_test_ret['internal']
-            tested_FP_list = association_test_ret['idx of passed FP']
-            candidate_targets[internal_factor] = self.generate_combination_targets_of_an_internal_factor(
-                self.frequent_subgraphs,
-                tested_FP_list,
-                internal_factor,
-               )
-        self.candidate_targets = candidate_targets
-
-    def output_candidated_targets(self):
-        try:
-            import os
-            import codecs
-        except Exception as e:
-            print("importError with os and codecs")
-            return
-        outputPATH = self.outputPATH
-        candidate_targets = self.candidate_targets
-        #check if directory exists
-        if not os.path.isdir(outputPATH):
-            os.makedirs(outputPATH)
-        output_file = codecs.open(os.path.join(outputPATH,'candidate_targets.txt'),'w','utf-8')
-        output_file.write('{0} {1}\n'.format('internal', 'exteranl'))
-        for _,candidate_targets_internal in candidate_targets.items():
-            for target_pair in candidate_targets_internal:
-                output_file.write('{0} {1}\n'.format(target_pair[0].upper(),target_pair[1].upper()))
-        output_file.close()
-        return self
-
-    def __load_lrp_human(self,):
-        return pd.read_csv(os.path.join( '../data', 'lrp_human.csv'))
-
-    def formulate_associated_ret(self,associated_file, lrp_human = None):
+        if outputPATH is None:
+            outputPATH = self.outputPATH
         if lrp_human is None:
             lrp_human = self.__load_lrp_human()
+        if not os.path.exists(outputPATH):
+            os.makedirs(outputPATH)
         node1 = []
         node2 = []
         node1_type = []
@@ -253,20 +173,26 @@ class Driver2Comm(object):
         internal = []  # internal factor
         rank = []
         adjust_p = []
-        i = 0
-        while (i < len(associated_file)):
-            if associated_file[i].startswith('internal'):
-                internal_t = associated_file[i].split(' ')[2].rstrip()
-                rank_t = int(associated_file[i + 1].split(' ')[1].rstrip())
+        for i in range(len(self.association_test_ret)):
+            association_test_ret = self.association_test_ret[i]
+            internal_factor = association_test_ret['internal']
+            tested_FP_list = association_test_ret['idx of passed FP']
+            p_value_list = association_test_ret['pvalue of passed FP']
+            sorted_idx = np.argsort(p_value_list)
+            for i in range(len(sorted_idx)):
+                g = self.frequent_subgraphs[tested_FP_list[sorted_idx[i]]].to_graph(gid=tested_FP_list[sorted_idx[i]])
+                edge_info = g.display(output2screen=False).rstrip().split('\n')
                 nodes_t = {}
-                i += 3
+                rank_t = i+1
+                internal_t = internal_factor
                 edge_num = 0
-                while not associated_file[i].startswith('adjust'):
-                    if associated_file[i].startswith('v'):
-                        line_split = associated_file[i].split(' ')
+
+                for j in range(1,len(edge_info)):
+                    if edge_info[j].startswith('v'):
+                        line_split = edge_info[j].split(' ')
                         nodes_t[line_split[1]] = line_split[2].rstrip()
-                    elif associated_file[i].startswith('e'):
-                        line_split = associated_file[i].split(' ')
+                    elif edge_info[j].startswith('e'):
+                        line_split = edge_info[j].split(' ')
                         node1_i, node1_type_i = nodes_t[line_split[1]].split('__')
                         node2_i, node2_type_i = nodes_t[line_split[2]].split('__')
                         if node1_type_i != node2_type_i:
@@ -298,11 +224,27 @@ class Driver2Comm(object):
                         rank.append(rank_t)
                         internal.append(internal_t)
                         edge_num += 1
-                    i += 1
-                adjust_p_t = float(associated_file[i].split(':')[1])
+                adjust_p_t = p_value_list[sorted_idx[i]]
                 adjust_p += [adjust_p_t] * edge_num
-            i += 1
         associated_mat = pd.DataFrame({'node1': node1, 'node2': node2, 'node1_type': node1_type,
                                        'node2_type': node2_type, 'is_ct_edge': is_ct_edge,
                                        'internal': internal, 'rank': rank, 'adjust_p': adjust_p}, )
         return associated_mat
+    def _get_ct_color_map(self):
+        associate_ret_mat = self.association_test_ret_mat
+        ct_list = sorted(list(set(associate_ret_mat['node1_type'])|set(associate_ret_mat['node2_type'])))
+        import matplotlib as mpl
+        colors = mpl.colors.TABLEAU_COLORS
+        pal = [color for name, color in colors.items()]
+        assert len(ct_list)<=10, "the number of celltype is larger than the maximum setting of Driver2Comm"
+        for i,ct in enumerate(ct_list):
+            self.ct_color_mat[ct] = pal[i]
+        return self
+    def output_assocaited_mat(self):
+        return self.association_test_ret
+    def __load_lrp_human(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, '../data', 'lrp_human.csv')
+        return pd.read_csv(file_path)
+
+
